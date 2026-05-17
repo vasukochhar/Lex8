@@ -18,7 +18,7 @@ export async function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveToCassette(hash: string, payload: any): Promise<void> {
+export async function saveToCassette(hash: string, payload: unknown): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -29,7 +29,7 @@ export async function saveToCassette(hash: string, payload: any): Promise<void> 
   });
 }
 
-export async function readFromCassette(hash: string): Promise<any | null> {
+export async function readFromCassette(hash: string): Promise<unknown | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -40,7 +40,7 @@ export async function readFromCassette(hash: string): Promise<any | null> {
   });
 }
 
-export async function generateHash(requestPayload: any): Promise<string> {
+export async function generateHash(requestPayload: unknown): Promise<string> {
   const str = JSON.stringify(requestPayload);
   const buffer = new TextEncoder().encode(str);
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
