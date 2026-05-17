@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lex8 — Build Board</title>
+<style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #ffffff;
+            --bg2: #f5f5f3;
+            --bg3: #ebebea;
+            --text: #1a1a18;
+            --text2: #6b6b68;
+            --text3: #9b9b98;
+            --border: rgba(0, 0, 0, 0.1);
+            --border2: rgba(0, 0, 0, 0.18);
+            --success-bg: #eaf3de;
+            --success-text: #27500a;
+            --success-border: rgba(99, 153, 34, 0.3);
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1e1e1c;
+                --bg2: #2a2a28;
+                --bg3: #333330;
+                --text: #f0f0ee;
+                --text2: #a0a09d;
+                --text3: #6b6b68;
+                --border: rgba(255, 255, 255, 0.1);
+                --border2: rgba(255, 255, 255, 0.18);
+                --success-bg: #1a2e0a;
+                --success-text: #c0dd97;
+                --success-border: rgba(99, 153, 34, 0.4);
+            }
+        }
+
+        body {
+            font-family:
+                -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px 20px 48px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .page-header {
+            max-width: 1200px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .page-sub {
+            font-size: 13px;
+            color: var(--text2);
+            margin-top: 3px;
+        }
+
+        .stats-bar {
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat {
+            background: var(--bg2);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            text-align: center;
+        }
+
+        .stat-num {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .phase-bar {
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .phase-btn {
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 99px;
+            border: 0.5px solid var(--border2);
+            background: transparent;
+            color: var(--text2);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .phase-btn:hover {
+            background: var(--bg2);
+            color: var(--text);
+        }
+
+        .phase-btn.active {
+            background: var(--bg3);
+            color: var(--text);
+            border-color: var(--border2);
+        }
+
+        .board {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        @media (max-width: 800px) {
+            .board {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .col-wrap {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .col-head {
+            border: 0.5px solid var(--border);
+            border-bottom: none;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 12px 14px;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .av-v {
+            background: #cecbf6;
+            color: #3c3489;
+        }
+
+        .av-f {
+            background: #9fe1cb;
+            color: #085041;
+        }
+
+        .av-p {
+            background: #b5d4f4;
+            color: #0c447c;
+        }
+
+        .col-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .role-pill {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            margin-left: auto;
+        }
+
+        .rp-v {
+            background: #eeedfe;
+            color: #3c3489;
+        }
+
+        .rp-f {
+            background: #e1f5ee;
+            color: #085041;
+        }
+
+        .rp-p {
+            background: #e6f1fb;
+            color: #0c447c;
+        }
+
+        .av-a {
+            background: #fcd9b0;
+            color: #7c3a08;
+        }
+
+        .rp-a {
+            background: #fef0de;
+            color: #7c3a08;
+        }
+
+        .pf-a {
+            background: #e68a1e;
+        }
+
+        .prog-strip {
+            border-left: 0.5px solid var(--border);
+            border-right: 0.5px solid var(--border);
+            background: var(--bg2);
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prog-track {
+            flex: 1;
+            height: 4px;
+            background: var(--bg3);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .prog-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.35s ease;
+        }
+
+        .pf-v {
+            background: #7f77dd;
+        }
+
+        .pf-f {
+            background: #1d9e75;
+        }
+
+        .pf-p {
+            background: #378add;
+        }
+
+        .prog-pct {
+            font-size: 12px;
+            color: var(--text2);
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .col-body {
+            border: 0.5px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            background: var(--bg);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .section-lbl {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 8px 4px 3px;
+        }
+
+        .task {
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius);
+            padding: 9px 11px;
+            background: var(--bg);
+            cursor: pointer;
+            transition:
+                border-color 0.15s,
+                background 0.15s;
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            user-select: none;
+        }
+
+        .task:hover {
+            border-color: var(--border2);
+            background: var(--bg2);
+        }
+
+        .task.done {
+            background: var(--bg2);
+        }
+
+        .task.done .t-text {
+            text-decoration: line-through;
+            color: var(--text3);
+        }
+
+        .task.hidden {
+            display: none;
+        }
+
+        .chk {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 0.5px solid var(--border2);
+            flex-shrink: 0;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            background: var(--bg);
+        }
+
+        .task.done .chk {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+        }
+
+        .chk-mark {
+            display: none;
+            width: 9px;
+            height: 9px;
+            stroke: #639922;
+            stroke-width: 2.5;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .task.done .chk-mark {
+            display: block;
+        }
+
+        .t-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .t-text {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.45;
+        }
+
+        .t-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .phase-tag {
+            font-size: 10px;
+            padding: 1px 7px;
+            border-radius: 99px;
+        }
+
+        .pt0 {
+            background: #f1efe8;
+            color: #444441;
+        }
+
+        .pt1 {
+            background: #eaf3de;
+            color: #27500a;
+        }
+
+        .pt2 {
+            background: #e6f1fb;
+            color: #0c447c;
+        }
+
+        .pt3 {
+            background: #eeedfe;
+            color: #3c3489;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .d-high {
+            background: #e24b4a;
+        }
+
+        .d-med {
+            background: #ef9f27;
+        }
+
+        .d-low {
+            background: #639922;
+        }
+
+        .legend {
+            max-width: 1200px;
+            margin: 20px auto 0;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--text2);
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="page-header">
+<div>
+<div class="page-title">Lex8 — Build Board</div>
+<div class="page-sub">
+                Click any task to mark it done · 3-week build
+            </div>
+</div>
+</div>
+<div class="stats-bar">
+<div class="stat">
+<div class="stat-num" id="s-done">0</div>
+<div class="stat-label">Done</div>
+</div>
+<div class="stat">
+<div class="stat-num" id="s-total">0</div>
+<div class="stat-label">Total</div>
+</div>
+<div class="stat">
+<div class="stat-num" id="s-pct">0%</div>
+<div class="stat-label">Progress</div>
+</div>
+</div>
+<div class="phase-bar">
+<button class="phase-btn active" onclick="setPhase('all', this)">
+            All phases
+        </button>
+<button class="phase-btn" onclick="setPhase('0', this)">
+            Phase 0 — Scaffolding
+        </button>
+<button class="phase-btn" onclick="setPhase('1', this)">
+            Phase 1 — Core modules
+        </button>
+<button class="phase-btn" onclick="setPhase('2', this)">
+            Phase 2 — Anchor8 depth
+        </button>
+<button class="phase-btn" onclick="setPhase('3', this)">
+            Phase 3 — Polish
+        </button>
+</div>
+<div class="board">
+<!-- ─────────── VASU ─────────── -->
+<div class="col-wrap">
+<div class="col-head">
+<div class="avatar av-v">V</div>
+<span class="col-name">Vasu</span>
+<span class="role-pill rp-v">Lead / Arch</span>
+</div>
+<div class="prog-strip">
+<div class="prog-track">
+<div class="prog-fill pf-v" id="pb-vasu" style="width: 0%"></div>
+</div>
+<span class="prog-pct" id="pp-vasu">0%</span>
+</div>
+<div class="col-body" id="col-vasu">
+<div class="section-lbl">
+                    Phase 0 — Scaffolding (Days 1–2)
+                </div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Bootstrap Turborepo monorepo (apps/, services/,
+                            packages/)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            FastAPI gateway: auth middleware, rate limiting,
+                            request idempotency, structured logging
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Postgres schema: matters, users, documents,
+                            agent_actions with row-level security
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            GitHub Actions CI/CD: build, test, sigstore
+                            artifact signing, SBOM, deploy
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Redpanda event bus: inter-module async pub/sub
+                            topics wired
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            AWS KMS: non-exportable signing keys, per-tenant
+                            isolation
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">S3/blob storage: region-locked buckets, content-hash blob_refs, perceptual hash index in Postgres</div>
+<div class="t-meta"><span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Terraform + Helm IaC: Azure AKS / AWS EKS modules, Kubernetes manifests for all services</div>
+<div class="t-meta"><span class="phase-tag pt0">Phase 0</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Elasticsearch/OpenSearch setup for BM25 component of hybrid retrieval search</div>
+<div class="t-meta"><span class="phase-tag pt0">Phase 0</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="section-lbl">
+                    Phase 1 — Core Modules (Days 3–10)
+                </div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Library: CourtListener + CAP API integration,
+                            Qdrant seeded with 50K cases
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Library: hybrid BM25 + Voyage dense vector
+                            search + BGE reranker pipeline
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Library: stale-precedent / overruled-case annotation from CourtListener citator + overrule-graph</div>
+<div class="t-meta"><span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Validator: Soufflé Datalog rule engine — FRCP
+                            12, SDNY local rules, NY statute of limitations
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            War Room: CrewAI orchestrator with 4 agent roles
+                            (pro / opposing / reviewer / verifier)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+
+<div class="section-lbl">
+                    Phase 3 — Polish &amp; Dry Runs
+                </div>
+
+<div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Lead all 3 dry runs (internal → founder → full
+                            audience sim); own recovery scripts
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Lex8 Core Canary tests: test_phase1.py for Drafter, Filer, Vault Vision, Forecast, Case Synth</div>
+<div class="t-meta"><span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span></div>
+</div>
+</div>
+</div>
+</div>
+<!-- ─────────── FAIZ ─────────── -->
+<div class="col-wrap">
+<div class="col-head">
+<div class="avatar av-f">F</div>
+<span class="col-name">Faiz</span>
+<span class="role-pill rp-f">Backend</span>
+</div>
+<div class="prog-strip">
+<div class="prog-track">
+<div class="prog-fill pf-f" id="pb-faiz" style="width: 0%"></div>
+</div>
+<span class="prog-pct" id="pp-faiz">0%</span>
+</div>
+<div class="col-body" id="col-faiz">
+<div class="section-lbl">
+                    Phase 0 — Scaffolding (Days 1–2)
+                </div>
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Spin up 8 module service skeletons with health
+                            checks (FastAPI + NestJS for Filer)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Redis setup: rate limits, embedding cache,
+                            threshold config store
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="section-lbl">
+                    Phase 1 — Core Modules (Days 3–10)
+                </div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Drafter: Claude Opus 4.7 wrapper with
+                            AnthropicAnchored client + streaming SSE
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Drafter: brief template system (MTD, MSJ,
+                            settlement letter) + guard on every paragraph
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Drafter: hallucination detector — DeBERTa classifier + structural rule engine (volume/year/reporter check)</div>
+<div class="t-meta"><span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Vault Vision: Tesseract OCR pipeline +
+                            text-layer vs visible-layer redaction diff
+                            detector
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Forecast: XGBoost + LightGBM ensemble trained on
+                            CourtListener metadata
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task done" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Case Synth: multi-modal timeline builder fusing
+                            doc + video + audio + photo sources
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+
+<div class="section-lbl">
+                    Phase 2 — Demo Data (Days 11–14)
+                </div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Demo fixture DB seeding: Acme v. Beta matter, 47 exhibits, 3 depo transcripts, 60-juror pool, 200 mock emails, 12 audio clips, Exhibit P-14</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="section-lbl">Phase 3 — Polish</div>
+<div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Module-level failure handling: retry logic,
+                            exponential backoff, degraded-flag responses
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+<!-- ─────────── Karthik ─────────── -->
+<div class="col-wrap">
+<div class="col-head">
+<div class="avatar av-p">P3</div>
+<span class="col-name">Karthik</span>
+<span class="role-pill rp-p">Frontend</span>
+</div>
+<div class="prog-strip">
+<div class="prog-track">
+<div class="prog-fill pf-p" id="pb-p3" style="width: 0%"></div>
+</div>
+<span class="prog-pct" id="pp-p3">0%</span>
+</div>
+<div class="col-body" id="col-p3">
+<div class="section-lbl">
+                    Phase 0 — Scaffolding (Days 1–2)
+                </div>
+<div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Next.js 15 App Router setup: TypeScript strict,
+                            Tailwind v4, shadcn/ui, Radix primitives
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Clerk auth integration: multi-tenant org
+                            switching, SAML/OIDC SSO, session refresh on
+                            context switch
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Matter dashboard layout: timeline, task list, 8
+                            module tabs visible
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="section-lbl">
+                    Phase 1 — Module UIs (Days 3–10)
+                </div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Drafter UI: streaming brief editor (TipTap),
+                            inline citation chips, mid-stream red-banner
+                            block
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Library UI: search results with citation
+                            snippets, overruled-case red annotations,
+                            Verified chips
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Tabular Review UI: TanStack Table v8,
+                            virtualized rows, governance-per-cell chip
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Vault Vision UI: document tile grid, OCR
+                            overlay, redaction-failure red banner,
+                            side-by-side view
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Filer UI: e-file flow stepper, Playwright status
+                            feed, pre-submit guard indicator
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Forecast UI: outcome probability bar, settlement
+                            P50/P75/P90, TreeSHAP horizontal bar chart
+                            (Recharts)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            War Room UI: 4-agent panel with real-time
+                            redline annotations streaming in parallel
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Validator UI: compliance check results panel,
+                            rules fired list, PASS / FAIL / CONDITIONAL
+                            badges
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Case Synth UI: modality timeline
+                            (doc/video/audio/photo icons), Contradictions
+                            tab
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+<div class="section-lbl">
+                    Phase 3 — Polish &amp; Demo Prep
+                </div>
+
+<div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Demo fixture screens: hot-swap recovery UI for
+                            each module crash scenario (Ctrl+Shift+F)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-high"></span>
+</div>
+</div>
+</div>
+<div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Demo close slide + Q&amp;A deck (3 bullets +
+                            comparison matrix)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-med"></span>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+<!-- ─────────── ANUBHAV ─────────── -->
+<div class="col-wrap">
+<div class="col-head">
+<div class="avatar av-a">A</div>
+<span class="col-name">Anubhav</span>
+<span class="role-pill rp-a">Testing / Anchor8</span>
+</div>
+<div class="prog-strip">
+<div class="prog-track">
+<div class="prog-fill pf-a" id="pb-anubhav" style="width: 0%"></div>
+</div>
+<span class="prog-pct" id="pp-anubhav">0%</span>
+</div>
+<div class="col-body" id="col-anubhav">
+<div class="section-lbl">Phase 1 — Identity (Days 3–10)</div>
+<div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Verifiable Credentials (VCs): scope definitions on agent DIDs, credential revocation via Redpanda</div>
+<div class="t-meta"><span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="section-lbl">Phase 2 — Anchor8 Depth + Testing (Days 11–14)</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Forensic narrative generator: Markdown + HTML + KMS-signed PDF with QR verification page</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Forensic narrative side panel UI: Article 14 fields streaming, SHAP section, signing block + PDF export</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Intercept 1: seed hallucinated Henderson citation, verify Lane 2 RAHS ≥ 0.7 block at ~50ms</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Intercept 2: privileged exhibit P-14 → Lane 3 dual-juror BLOCK → Lane 4 15-min queue</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Intercept 3: race-proxy bias in jury strike → constitutional constraint + TreeSHAP attribution</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Fail-closed posture: 10s timeout → block yellow-band; dead-man’s-switch webhook fire</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Defensibility Console backend: action timeline API, block analyzer, juror disagreement log endpoints</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Defensibility Console UI: action timeline, block analyzer, juror disagreement log, Lane 4 SLA tracker, drift charts</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Lane 4 reviewer queue backend: routing, 15-min SLA timer, APPROVE/BLOCK/MODIFY actions</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Lane 4 reviewer UI: evidence bundle view, both juror narratives, APPROVE / BLOCK / MODIFY actions</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Tribunal “in session” UI: two-juror parallel streaming columns + tiebreaker entry animation</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Compliance export endpoint: one-click signed PDF report per matter or date range</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Knowledge distillation loop: Lane 2 training feedback from BLOCK verdicts + Lane 4 human verdicts</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Degradation ladder (5 rungs): Healthy → Degraded → Critical → Emergency → Fail-closed</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">QR verification public endpoint for signed forensic narrative PDFs</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="task" data-phase="2" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">Drift monitor charts: PSI / ADWIN / Kappa metrics per module on Defensibility Console</div>
+<div class="t-meta"><span class="phase-tag pt2">Phase 2</span><span class="dot d-med"></span></div>
+</div>
+</div>
+<div class="section-lbl">Phase 3 — Integration Testing</div>
+<div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk"><svg class="chk-mark" viewbox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2"></polyline></svg></div>
+<div class="t-body">
+<div class="t-text">End-to-end Anchor8 integration test suite: all 3 intercepts, all 8 telemetry schemas, Lane 1–4 verdict flows</div>
+<div class="t-meta"><span class="phase-tag pt3">Phase 3</span><span class="dot d-high"></span></div>
+</div>
+</div>
+<div class="section-lbl">Phase 0 — Migrated Anchor8 Tasks</div><div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Anchor8 SDK install + verify dial-out to staging
+                            gateway endpoint
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Multi-tenant identity: W3C DID issuance via UAI,
+                            org_id composite keys on all DB reads/writes
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Library: context_injection_similarity
+                            anti-injection defence + Anchor8
+                            RetrievalTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Validator: neuro-symbolic conflict resolution +
+                            Anchor8 NeuroSymbolicTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            War Room: per-agent DID, communication graph
+                            trace, Anchor8 SwarmTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Nightly canary tests: cross-tenant rejection,
+                            DID mismatch, replay attack blocks
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div><div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Offline cassette mode: record all 3 intercept
+                            Anchor8 responses for demo fallback
+                            (Ctrl+Shift+O)
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="0" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Shared Pydantic + Zod schemas package; Anchor8
+                            SDK wrapper package
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt0">Phase 0</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Drafter: Anchor8 LLMTelemetry — PROMPT +
+                            RESPONSE direction, token entropy stream
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Vault Vision: privilege-marker classifier +
+                            pHash + Anchor8 VisionTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Filer: Playwright PACER mock flow — DOM capture,
+                            DOMRect telemetry, form-field PII redaction
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Filer: attorney HMAC auth token, guard before
+                            final submit, Anchor8 RPATelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Forecast: SHAP attribution, PSI drift detection,
+                            protected-class proxy detector, Anchor8
+                            MLStatisticalTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Case Synth: contradiction detector + Whisper
+                            transcription + Anchor8 MultiModalTelemetry
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-med"></span>
+</div>
+</div>
+</div><div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Prometheus metrics per module; OpenTelemetry
+                            traces; Sentry error tracking wired
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-low"></span>
+</div>
+</div>
+</div><div class="task" data-phase="1" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Anchor8 Verified chip React component: green /
+                            yellow / red states, side-panel open on click
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt1">Phase 1</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Full visual polish pass: typography, spacing,
+                            motion, Anchor8 chip marketing-ready screenshots
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-high"></span>
+</div>
+</div>
+</div><div class="task" data-phase="3" onclick="toggle(this)">
+<div class="chk">
+<svg class="chk-mark" viewbox="0 0 10 10">
+<polyline points="1.5,5 4,7.5 8.5,2"></polyline>
+</svg>
+</div>
+<div class="t-body">
+<div class="t-text">
+                            Browser autosave (IndexedDB), offline resume,
+                            Ctrl+Shift+O cassette mode keyboard shortcut
+                        </div>
+<div class="t-meta">
+<span class="phase-tag pt3">Phase 3</span><span class="dot d-med"></span>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+<!-- /board -->
+<div class="legend">
+<span style="font-weight: 600; color: var(--text)">Priority:</span>
+<span class="legend-item"><span class="dot d-high" style="display: inline-block"></span>
+            High</span>
+<span class="legend-item"><span class="dot d-med" style="display: inline-block"></span>
+            Medium</span>
+<span class="legend-item"><span class="dot d-low" style="display: inline-block"></span>
+            Low</span>
+<span style="margin-left: 12px; font-weight: 600; color: var(--text)">Note:</span>
+<span>Progress resets on page refresh — use as a shared reference,
+            tick off in stand-ups</span>
+</div>
+<script>
+        function toggle(el) {
+            el.classList.toggle('done');
+            updateAll();
+        }
+
+        function setPhase(phase, btn) {
+            document.querySelectorAll('.phase-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+            document.querySelectorAll('.task').forEach(function (t) {
+                if (phase === 'all' || t.dataset.phase === phase) {
+                    t.classList.remove('hidden');
+                } else {
+                    t.classList.add('hidden');
+                }
+            });
+        }
+
+        function updateAll() {
+            var cols = [
+                { id: 'col-vasu', pb: 'pb-vasu', pp: 'pp-vasu' },
+                { id: 'col-faiz', pb: 'pb-faiz', pp: 'pp-faiz' },
+                { id: 'col-p3', pb: 'pb-p3', pp: 'pp-p3' },
+                { id: 'col-anubhav', pb: 'pb-anubhav', pp: 'pp-anubhav' },
+            ];
+            var td = 0,
+                ta = 0;
+            cols.forEach(function (c) {
+                var all = document.querySelectorAll(
+                    '#' + c.id + ' .task',
+                ).length;
+                var done = document.querySelectorAll(
+                    '#' + c.id + ' .task.done',
+                ).length;
+                var pct = all > 0 ? Math.round((done / all) * 100) : 0;
+                document.getElementById(c.pb).style.width = pct + '%';
+                document.getElementById(c.pp).textContent = pct + '%';
+                td += done;
+                ta += all;
+            });
+            document.getElementById('s-done').textContent = td;
+            document.getElementById('s-total').textContent = ta;
+            document.getElementById('s-pct').textContent =
+                ta > 0 ? Math.round((td / ta) * 100) + '%' : '0%';
+        }
+
+        updateAll();
+    </script>
+</body>
+</html>
