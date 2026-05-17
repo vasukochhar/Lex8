@@ -97,7 +97,14 @@ body {
   transition: var(--transition-smooth);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+}
+
+.nav-item small {
+  color: var(--accent-cyan);
+  font-size: 0.7rem;
+  text-transform: uppercase;
 }
 
 .nav-item:hover, .nav-item.active {
@@ -146,6 +153,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.mini-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 0.75rem;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.mini-panel span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .status-indicator {

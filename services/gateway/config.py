@@ -1,12 +1,24 @@
 """
-Lex8 Gateway configuration — loaded from .env
+Lex8 Gateway configuration — loaded from the repo-local env file.
 """
 
-from pydantic_settings import BaseSettings
+from pathlib import Path
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ENV_FILE = Path(__file__).resolve().parents[2] / "env"
 
 
 class Settings(BaseSettings):
     """Gateway settings loaded from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # App
     ENV: str = "development"
@@ -35,9 +47,18 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     OPENSEARCH_URL: str = "http://localhost:9200"
 
-    class Config:
-        env_file = "../../.env"
-        env_file_encoding = "utf-8"
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production"}:
+                return False
+        return value
 
 
 settings = Settings()

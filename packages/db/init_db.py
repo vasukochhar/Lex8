@@ -2,13 +2,24 @@
 Database connection and session management.
 """
 
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from models import Base
+try:
+    from .models import Base
+    from .seed_demo_data import seed_demo_data
+except ImportError:
+    from models import Base
+    from seed_demo_data import seed_demo_data
 
 
-DATABASE_URL = "postgresql://lex8:lex8_dev@localhost:5432/lex8"
+load_dotenv(Path(__file__).resolve().parents[2] / "env")
+
+DATABASE_URL = os.environ.get("POSTGRES_URL", "postgresql://lex8:lex8_dev@localhost:5432/lex8")
 
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine)
@@ -22,7 +33,11 @@ def init_db():
 
 def apply_rls():
     """Apply row-level security policies."""
-    from models import RLS_STATEMENTS
+    try:
+        from .models import RLS_STATEMENTS
+    except ImportError:
+        from models import RLS_STATEMENTS
+
     with engine.connect() as conn:
         for stmt in RLS_STATEMENTS.strip().split(";"):
             stmt = stmt.strip()
@@ -39,39 +54,12 @@ def apply_rls():
 
 
 def seed_demo_tenant():
-    """Create the Acme v. Beta demo tenant and matter."""
-    import uuid
+    """Create the full Acme v. Beta demo fixture set."""
     with SessionLocal() as session:
-        from models import Tenant, Matter, User
-        
-        tenant_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
-        existing = session.get(Tenant, tenant_id)
-        if existing:
-            print("  ℹ Demo tenant already exists, skipping.")
-            return
-
-        tenant = Tenant(id=tenant_id, name="Demo Law Firm LLP", region="us-east-1")
-        session.add(tenant)
-
-        user = User(
-            tenant_id=tenant_id,
-            email="vasu@demo.lex8.ai",
-            display_name="Vasu (Demo)",
-            role="admin",
-        )
-        session.add(user)
-
-        matter = Matter(
-            tenant_id=tenant_id,
-            title="Acme Corp. v. Beta Industries",
-            case_number="1:24-cv-01234",
-            jurisdiction="SDNY",
-            status="active",
-        )
-        session.add(matter)
-        session.commit()
-        print(f"✅ Demo tenant seeded: {tenant.name}")
-        print(f"   Matter: {matter.title} ({matter.case_number})")
+        counts = seed_demo_data(session)
+        print("✅ Acme v. Beta demo data seeded.")
+        for key, value in counts.items():
+            print(f"   {key}: +{value}")
 
 
 if __name__ == "__main__":

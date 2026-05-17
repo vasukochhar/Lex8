@@ -4,13 +4,18 @@ Combines deterministic Datalog rules with LLM-based fuzziness for edge cases.
 """
 
 import time
+import os
+from pathlib import Path
 from typing import Dict, Any
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
-# Lex8 uses DeepSeek via the OpenAI client
-DEEPSEEK_API_KEY = "sk-0d10dd320a454cbe9c32febefe2f5e30"
-client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
+load_dotenv(Path(__file__).resolve().parents[3] / "env")
+
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL) if DEEPSEEK_API_KEY else None
 
 def resolve_conflict(violations: list[str], draft_text: str) -> Dict[str, Any]:
     """
@@ -36,20 +41,24 @@ def resolve_conflict(violations: list[str], draft_text: str) -> Dict[str, Any]:
     Provide a brief analysis and a recommendation (Fix, Ignore).
     """
     
-    try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "You are a legal validation arbiter resolving conflicts between deterministic rules and nuanced human/agent drafting."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1
-        )
-        resolution_text = response.choices[0].message.content
-        status = "MODIFY" if "Fix" in resolution_text else "PASS"
-    except Exception as e:
-        resolution_text = f"LLM Arbitration failed: {e}"
-        status = "ERROR"
+    if not client:
+        resolution_text = "Mock arbitration: deterministic violations should be surfaced to the user with a recommended edit."
+        status = "MODIFY"
+    else:
+        try:
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": "You are a legal validation arbiter resolving conflicts between deterministic rules and nuanced human/agent drafting."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1
+            )
+            resolution_text = response.choices[0].message.content
+            status = "MODIFY" if "Fix" in resolution_text else "PASS"
+        except Exception as e:
+            resolution_text = f"LLM Arbitration failed: {e}"
+            status = "ERROR"
 
     return {
         "status": status,

@@ -14,12 +14,18 @@ from config import settings
 
 _redis = None
 TTL = 86400  # 24 hours
+_memory_cache = {}
 
 
 async def get_redis():
     global _redis
     if _redis is None:
-        _redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        _redis = redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=0.05,
+            socket_timeout=0.05,
+        )
     return _redis
 
 
@@ -31,17 +37,23 @@ async def idempotency_middleware(request: Request, call_next):
     if not idem_key or request.method in ("GET", "HEAD", "OPTIONS"):
         return await call_next(request)
 
-    r = await get_redis()
     cache_key = f"idem:{idem_key}"
 
     # Check if we already processed this request
-    cached = await r.get(cache_key)
+    try:
+        r = await get_redis()
+        cached = await r.get(cache_key)
+        backend = "redis"
+    except Exception:
+        cached = _memory_cache.get(cache_key)
+        backend = "memory"
+
     if cached:
-        data = json.loads(cached)
+        data = json.loads(cached) if isinstance(cached, str) else cached
         return JSONResponse(
             content=data["body"],
             status_code=data["status"],
-            headers={"X-Idempotent-Replay": "true"},
+            headers={"X-Idempotent-Replay": "true", "X-Idempotency-Backend": backend},
         )
 
     # Process the request
@@ -57,11 +69,15 @@ async def idempotency_middleware(request: Request, call_next):
             "status": response.status_code,
             "body": json.loads(body.decode()),
         })
-        await r.setex(cache_key, TTL, cache_data)
+        if backend == "redis":
+            await r.setex(cache_key, TTL, cache_data)
+        else:
+            _memory_cache[cache_key] = json.loads(cache_data)
 
         return JSONResponse(
             content=json.loads(body.decode()),
             status_code=response.status_code,
+            headers={"X-Idempotency-Backend": backend},
         )
 
     return response

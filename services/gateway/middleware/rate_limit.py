@@ -10,34 +10,46 @@ from fastapi import Request, HTTPException
 from config import settings
 
 _redis = None
+_memory_windows = {}
 
 
 async def get_redis():
     global _redis
     if _redis is None:
-        _redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        _redis = redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=0.05,
+            socket_timeout=0.05,
+        )
     return _redis
 
 
 async def rate_limit_middleware(request: Request, call_next):
     """Sliding window rate limiter."""
-    r = await get_redis()
-    
     # Use IP as key for now (will switch to tenant_id with auth)
     client_ip = request.client.host if request.client else "unknown"
     key = f"rl:{client_ip}"
     now = time.time()
     window = 60  # 1 minute
-
-    pipe = r.pipeline()
-    pipe.zremrangebyscore(key, 0, now - window)
-    pipe.zadd(key, {str(now): now})
-    pipe.zcard(key)
-    pipe.expire(key, window)
-    results = await pipe.execute()
-
-    request_count = results[2]
     limit = 100
+
+    try:
+        r = await get_redis()
+        pipe = r.pipeline()
+        pipe.zremrangebyscore(key, 0, now - window)
+        pipe.zadd(key, {str(now): now})
+        pipe.zcard(key)
+        pipe.expire(key, window)
+        results = await pipe.execute()
+        request_count = results[2]
+        backend = "redis"
+    except Exception:
+        hits = [ts for ts in _memory_windows.get(key, []) if ts > now - window]
+        hits.append(now)
+        _memory_windows[key] = hits
+        request_count = len(hits)
+        backend = "memory"
 
     if request_count > limit:
         raise HTTPException(
@@ -48,4 +60,5 @@ async def rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(max(0, limit - request_count))
+    response.headers["X-RateLimit-Backend"] = backend
     return response

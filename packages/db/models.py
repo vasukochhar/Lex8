@@ -68,6 +68,8 @@ class Matter(Base):
     tenant = relationship("Tenant", back_populates="matters")
     documents = relationship("Document", back_populates="matter")
     agent_actions = relationship("AgentAction", back_populates="matter")
+    demo_jurors = relationship("DemoJuror", back_populates="matter")
+    demo_events = relationship("DemoEvent", back_populates="matter")
 
     __table_args__ = (
         Index("ix_matters_tenant", "tenant_id"),
@@ -114,6 +116,7 @@ class AgentAction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     matter = relationship("Matter", back_populates="agent_actions")
+    narratives = relationship("DefensibilityNarrative", back_populates="agent_action")
 
     __table_args__ = (
         Index("ix_actions_matter", "matter_id"),
@@ -139,6 +142,87 @@ class BlobRef(Base):
         UniqueConstraint("tenant_id", "content_hash", name="uq_tenant_content_hash"),
         Index("ix_blob_refs_phash", "phash"),
     )
+
+
+class DemoJuror(Base):
+    __tablename__ = "demo_jurors"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    matter_id = Column(UUID(as_uuid=True), ForeignKey("matters.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    juror_key = Column(String(50), nullable=False)
+    juror_number = Column(Integer, nullable=False)
+    status = Column(String(50), default="pool")
+    metadata_ = Column("metadata", JSONB, default={})
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    matter = relationship("Matter", back_populates="demo_jurors")
+
+    __table_args__ = (
+        UniqueConstraint("matter_id", "juror_key", name="uq_demo_juror_key"),
+        Index("ix_demo_jurors_matter", "matter_id"),
+    )
+
+
+class DemoEvent(Base):
+    __tablename__ = "demo_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    matter_id = Column(UUID(as_uuid=True), ForeignKey("matters.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    event_key = Column(String(100), nullable=False)
+    event_type = Column(String(50), nullable=False)
+    occurred_at = Column(String(40), nullable=False)
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    metadata_ = Column("metadata", JSONB, default={})
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    matter = relationship("Matter", back_populates="demo_events")
+
+    __table_args__ = (
+        UniqueConstraint("matter_id", "event_key", name="uq_demo_event_key"),
+        Index("ix_demo_events_matter", "matter_id"),
+    )
+
+
+class Lane4Review(Base):
+    __tablename__ = "lane4_reviews"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    review_id = Column(String(100), nullable=False, unique=True)
+    action_id = Column(String(100), nullable=False)
+    matter_id = Column(String(100), nullable=False)
+    status = Column(String(50), default="pending")
+    sla_minutes = Column(Integer, default=15)
+    reason = Column(Text, nullable=False)
+    allowed_decisions = Column(JSONB, default=["APPROVE", "BLOCK", "MODIFY"])
+    evidence_bundle = Column(JSONB, default={})
+    juror_narratives = Column(JSONB, default=[])
+    decision = Column(String(20), nullable=True)
+    reviewer = Column(String(255), nullable=True)
+    note = Column(Text, nullable=True)
+    decided_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_lane4_reviews_status", "status"),
+        Index("ix_lane4_reviews_action", "action_id"),
+    )
+
+
+class DefensibilityNarrative(Base):
+    __tablename__ = "defensibility_narratives"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    action_id = Column(UUID(as_uuid=True), ForeignKey("agent_actions.id"), nullable=False)
+    anchor8_action_id = Column(String(100), nullable=False, unique=True)
+    title = Column(String(500), nullable=False)
+    summary = Column(Text, nullable=False)
+    snapshot = Column(JSONB, default={})
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    agent_action = relationship("AgentAction", back_populates="narratives")
 
 
 # ── RLS SQL (applied via migration) ──

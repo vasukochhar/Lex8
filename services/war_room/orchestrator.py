@@ -5,13 +5,17 @@ Executes a 4-agent debate using DeepSeek models (Mocked CrewAI flow).
 
 import time
 import os
+from pathlib import Path
 from typing import Dict, Any
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
-# Setup DeepSeek LLM
-DEEPSEEK_API_KEY = "sk-0d10dd320a454cbe9c32febefe2f5e30"
-client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
+load_dotenv(Path(__file__).resolve().parents[2] / "env")
+
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL) if DEEPSEEK_API_KEY else None
 
 def create_war_room(issue: str) -> Dict[str, Any]:
     """
@@ -42,18 +46,21 @@ def create_war_room(issue: str) -> Dict[str, Any]:
     Deliver a fair, binding resolution in 2 short paragraphs.
     """
     
-    try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "You are a pragmatic legal adjudicator."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
-        result = response.choices[0].message.content
-    except Exception as e:
-        result = f"War Room Debate failed: {e}"
+    if not client:
+        result = "War Room mock ruling: commingling evidence raises risk, but intent and corporate separateness must be reviewed before piercing the veil."
+    else:
+        try:
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": "You are a pragmatic legal adjudicator."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7
+            )
+            result = response.choices[0].message.content
+        except Exception as e:
+            result = f"War Room Debate failed: {e}"
 
     latency_ms = (time.perf_counter() - start_time) * 1000
 
