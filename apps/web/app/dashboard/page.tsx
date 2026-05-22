@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   FileText,
@@ -19,12 +19,15 @@ import {
   UserCheck,
   RefreshCw,
   FolderOpen,
+  Maximize2,
   Clock,
   Play,
   Save,
   Check,
   X,
+  FilePlus,
   AlertCircle,
+  HelpCircle,
   Activity,
   Target
 } from 'lucide-react';
@@ -34,7 +37,7 @@ import { useCompletion } from 'ai/react';
 
 import { cn } from '../../lib/utils';
 import { lex8Api } from '../../lib/api';
-import { useDrafterStore } from '../../lib/store';
+import { useDrafterStore, Matter, Citation, ComplianceCheck, TribunalReview } from '../../lib/store';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -96,6 +99,7 @@ const htmlToText = (html: string) => {
 };
 
 export default function Lex8Drafter() {
+  const queryClient = useQueryClient();
   
   // Zustand Store values
   const {
@@ -122,12 +126,14 @@ export default function Lex8Drafter() {
     setComplianceChecks,
     tribunalReviews,
     setTribunalReviews,
+    activeTribunalReviewId,
     setActiveTribunalReviewId,
     auditLogs,
     addAuditLog,
     clearAuditLogs,
     isOfflineMode,
     setIsOfflineMode,
+    isStreaming,
     setIsStreaming,
     streamPhase,
     setStreamPhase,
@@ -139,8 +145,10 @@ export default function Lex8Drafter() {
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const [adminOverrideCode, setAdminOverrideCode] = React.useState<string>('');
   const [showOverrideDialog, setShowOverrideDialog] = React.useState(false);
-  const [tickerMessage, setTickerMessage] = React.useState('SYSTEM NOMINAL');
+  const [showTemplateDialog, setShowTemplateDialog] = React.useState(false);
+  const [tickerMessage, setTickerMessage] = React.useState('SYS: IDLE. Ready for compile/verify sequence.');
   const [tokensPerSecond, setTokensPerSecond] = React.useState(0);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   // TipTap Editor instance
   const editor = useEditor({
@@ -234,7 +242,7 @@ export default function Lex8Drafter() {
   // Vercel AI SDK Stream Hook
   const { completion, complete, stop, isLoading } = useCompletion({
     api: '/api/completion',
-    onResponse: () => {
+    onResponse: (response) => {
       setIsStreaming(true);
       setStreamPhase('streaming');
       addAuditLog({
@@ -291,7 +299,6 @@ export default function Lex8Drafter() {
         viewport.scrollTop = viewport.scrollHeight;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completion, editor, isLoading]);
 
   // Sync draftText updates from store (e.g. template changes, corrections) to TipTap editor
@@ -332,13 +339,14 @@ export default function Lex8Drafter() {
   }, [isLoading]);
 
   // Query for backend health
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [healthData, setHealthData] = React.useState({ status: 'ok' });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [healthLoading, setHealthLoading] = React.useState(false);
+  const { data: healthData, isLoading: healthLoading, isError: healthError } = useQuery({
+    queryKey: ['moduleHealth'],
+    queryFn: lex8Api.moduleHealth,
+    refetchInterval: 30000,
+  });
 
   // Query for templates
-  useQuery({
+  const { data: templatesData } = useQuery({
     queryKey: ['drafterTemplates'],
     queryFn: lex8Api.drafterTemplates,
   });
@@ -478,7 +486,6 @@ export default function Lex8Drafter() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOfflineMode, setIsOfflineMode]);
 
   // Simulated Autosave effect
@@ -1231,7 +1238,6 @@ export default function Lex8Drafter() {
         <aside className="w-80 flex flex-col bg-neutral-100 select-none z-10">
           
           {/* Tab Navigation header */}
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <Tabs value={activeRightTab} onValueChange={(v) => setActiveRightTab(v as any)} className="w-full flex-1 flex flex-col">
             
             <TabsList className="grid grid-cols-4 h-9 bg-neutral-200 border-b border-neutral-300">
@@ -1343,7 +1349,7 @@ export default function Lex8Drafter() {
 
                           <div className="border border-neutral-100 bg-neutral-50 p-2 font-mono text-[9px] text-neutral-600 leading-normal">
                             <strong>Validation Snippet:</strong>
-                            <p className="mt-1 italic">&quot;{selectedCit.snippet}&quot;</p>
+                            <p className="mt-1 italic">"{selectedCit.snippet}"</p>
                           </div>
 
                           {selectedCit.status === 'blocked' && (
