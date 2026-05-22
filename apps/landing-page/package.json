@@ -1,0 +1,13 @@
+{
+  "name": "@lex8/landing-page",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "serve . -p 3001 --no-clipboard",
+    "build": "echo 'No build step required for static landing page'",
+    "start": "serve . -p 3001 --no-clipboard"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
