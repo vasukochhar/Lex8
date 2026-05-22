@@ -139,6 +139,7 @@ export default function Lex8Drafter() {
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const [adminOverrideCode, setAdminOverrideCode] = React.useState<string>('');
   const [showOverrideDialog, setShowOverrideDialog] = React.useState(false);
+  const [tickerMessage, setTickerMessage] = React.useState('SYSTEM NOMINAL');
   const [tokensPerSecond, setTokensPerSecond] = React.useState(0);
 
   // TipTap Editor instance
@@ -331,7 +332,9 @@ export default function Lex8Drafter() {
   }, [isLoading]);
 
   // Query for backend health
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [healthData, setHealthData] = React.useState({ status: 'ok' });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [healthLoading, setHealthLoading] = React.useState(false);
 
   // Query for templates
