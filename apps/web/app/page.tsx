@@ -15,18 +15,13 @@ import {
   Terminal,
   Layers,
   BookOpen,
-  UserCheck,
   RefreshCw,
   FolderOpen,
-  Maximize2,
   Clock,
   Play,
   Save,
   Check,
-  X,
-  FilePlus,
   AlertCircle,
-  HelpCircle,
   Activity,
   Target
 } from 'lucide-react';
