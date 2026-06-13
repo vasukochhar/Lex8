@@ -10,7 +10,7 @@ const nextConfig = {
         // Covers: /about.html, /product.html, /solutions.html, /pricing.html, etc.
         {
           source: "/:path*.html",
-          destination: "http://localhost:3001/:path*.html",
+          destination: "http://localhost:3002/:path*.html",
         },
       ],
 
@@ -20,33 +20,33 @@ const nextConfig = {
         // Landing page root
         {
           source: "/",
-          destination: "http://localhost:3001/",
+          destination: "http://localhost:3002/",
         },
         // Marketing pages (clean URLs → .html files on the static server)
         {
           source: "/about",
-          destination: "http://localhost:3001/about.html",
+          destination: "http://localhost:3002/about.html",
         },
         {
           source: "/pricing",
-          destination: "http://localhost:3001/pricing.html",
+          destination: "http://localhost:3002/pricing.html",
         },
         {
           source: "/product",
-          destination: "http://localhost:3001/product.html",
+          destination: "http://localhost:3002/product.html",
         },
         {
           source: "/security",
-          destination: "http://localhost:3001/security.html",
+          destination: "http://localhost:3002/security.html",
         },
         {
           source: "/solutions",
-          destination: "http://localhost:3001/solutions.html",
+          destination: "http://localhost:3002/solutions.html",
         },
         // Static assets (CSS, JS, images) required by the landing page
         {
           source: "/assets/:path*",
-          destination: "http://localhost:3001/assets/:path*",
+          destination: "http://localhost:3002/assets/:path*",
         },
       ],
 

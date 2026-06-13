@@ -1,7 +1,6 @@
 from typing import Any
 from fastapi import APIRouter
 
-from integrations.anchor8_client import anchor8_client
 from response_utils import module_response
 
 
@@ -21,12 +20,6 @@ async def list_templates() -> dict[str, Any]:
 
 @router.post("/drafts")
 async def create_draft(payload: dict[str, Any]) -> dict[str, Any]:
-    anchor8 = await anchor8_client.guard("drafter", "create_draft", payload)
-    anchor8["action_id"] = "a8_demo_drafter_hallucination_block"
-    anchor8["verdict"] = "BLOCK"
-    anchor8["lane"] = 2
-    anchor8["rahs"] = 0.82
-    anchor8["reason"] = "Mock Anchor8 metadata: fabricated Henderson citation blocked before output."
     legacy = {
         "draft_id": "draft_demo_msj_001",
         "status": "blocked_by_mock_anchor8",
@@ -34,6 +27,5 @@ async def create_draft(payload: dict[str, Any]) -> dict[str, Any]:
         "template_id": payload.get("template_id", "msj"),
         "title": "Mock MSJ Draft",
         "content_preview": "Demo draft intercepted before output because a fabricated Henderson citation was detected in mock metadata.",
-        "anchor8": anchor8,
     }
     return module_response("drafter", legacy, status="blocked", legacy=legacy)

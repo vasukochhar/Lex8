@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "serve . -p 3001 --no-clipboard",
+    "dev": "serve . -p 3002 --no-clipboard",
     "build": "echo 'No build step required for static landing page'",
-    "start": "serve . -p 3001 --no-clipboard"
+    "start": "serve . -p 3002 --no-clipboard"
   },
   "devDependencies": {
     "serve": "^14.2.4"
+  },
+  "dependencies": {
+    "requirements.txt": "link:services\\gateway\\requirements.txt"
   }
 }

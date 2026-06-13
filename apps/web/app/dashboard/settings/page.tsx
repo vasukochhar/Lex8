@@ -75,22 +75,9 @@ function SettingRow({
 }
 
 export default function SettingsPage() {
-  // --- Governance Engine ---
-  const [failClosedThreshold, setFailClosedThreshold] = useState('0.82');
-  const [tribunalQuorum, setTribunalQuorum] = useState('3');
-  const [lane2Sensitivity, setLane2Sensitivity] = useState('high');
-  const [cassetteReplay, setCassetteReplay] = useState(false);
-
   // --- Integrations ---
   const [westlawEndpoint, setWestlawEndpoint] = useState('https://api.westlaw.com/v1');
-  const [anchor8Uri, setAnchor8Uri] = useState('vault://anchor8.lex8.io/primary');
   const [didRegistry, setDidRegistry] = useState('did:eth:mainnet');
-
-  // --- Audit & Compliance ---
-  const [auditLogging, setAuditLogging] = useState(true);
-  const [euAiActMode, setEuAiActMode] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(false);
-  const [soc2Export, setSoc2Export] = useState('weekly');
 
   // --- Save state ---
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -148,71 +135,6 @@ export default function SettingsPage() {
 
             <div className="divide-y divide-neutral-200">
 
-              {/* ── Governance Engine ── */}
-              <div className="p-4 space-y-2">
-                <SectionLabel>Governance Engine</SectionLabel>
-
-                <SettingRow
-                  label="Fail-Closed Threshold"
-                  sublabel="Risk score above which output is blocked"
-                >
-                  <input
-                    id="fail-closed-threshold"
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={failClosedThreshold}
-                    onChange={(e) => setFailClosedThreshold(e.target.value)}
-                    className={inputClass}
-                  />
-                </SettingRow>
-
-                <SettingRow
-                  label="Tribunal Quorum Size"
-                  sublabel="Number of juror models required"
-                >
-                  <input
-                    id="tribunal-quorum"
-                    type="number"
-                    min="1"
-                    max="9"
-                    step="1"
-                    value={tribunalQuorum}
-                    onChange={(e) => setTribunalQuorum(e.target.value)}
-                    className={inputClass}
-                  />
-                </SettingRow>
-
-                <SettingRow
-                  label="Lane 2 Intercept Sensitivity"
-                  sublabel="Hallucination detection aggressiveness"
-                >
-                  <select
-                    id="lane2-sensitivity"
-                    value={lane2Sensitivity}
-                    onChange={(e) => setLane2Sensitivity(e.target.value)}
-                    className={selectClass}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="max">Max (Strict)</option>
-                  </select>
-                </SettingRow>
-
-                <SettingRow
-                  label="Cassette Replay Mode"
-                  sublabel="Serve pre-recorded API responses offline"
-                >
-                  <Toggle
-                    id="cassette-replay"
-                    enabled={cassetteReplay}
-                    onChange={setCassetteReplay}
-                  />
-                </SettingRow>
-              </div>
-
               {/* ── Integrations ── */}
               <div className="p-4 space-y-2">
                 <SectionLabel>Integrations</SectionLabel>
@@ -231,19 +153,6 @@ export default function SettingsPage() {
                 </SettingRow>
 
                 <SettingRow
-                  label="Anchor8 Vault URI"
-                  sublabel="Cryptographic document vault endpoint"
-                >
-                  <input
-                    id="anchor8-uri"
-                    type="text"
-                    value={anchor8Uri}
-                    onChange={(e) => setAnchor8Uri(e.target.value)}
-                    className={inputClass}
-                  />
-                </SettingRow>
-
-                <SettingRow
                   label="DID Registry"
                   sublabel="Decentralised identity chain target"
                 >
@@ -254,61 +163,6 @@ export default function SettingsPage() {
                     onChange={(e) => setDidRegistry(e.target.value)}
                     className={inputClass}
                   />
-                </SettingRow>
-              </div>
-
-              {/* ── Audit & Compliance ── */}
-              <div className="p-4 space-y-2">
-                <SectionLabel>Audit &amp; Compliance</SectionLabel>
-
-                <SettingRow
-                  label="Immutable Audit Logging"
-                  sublabel="Write all operations to append-only ledger"
-                >
-                  <Toggle
-                    id="audit-logging"
-                    enabled={auditLogging}
-                    onChange={setAuditLogging}
-                  />
-                </SettingRow>
-
-                <SettingRow
-                  label="EU AI Act Article 14 Mode"
-                  sublabel="Enforce human-in-the-loop overrides"
-                >
-                  <Toggle
-                    id="eu-ai-act-mode"
-                    enabled={euAiActMode}
-                    onChange={setEuAiActMode}
-                  />
-                </SettingRow>
-
-                <SettingRow
-                  label="Email Notifications"
-                  sublabel="Alert on tribunal blocks and overrides"
-                >
-                  <Toggle
-                    id="email-notifications"
-                    enabled={emailNotifications}
-                    onChange={setEmailNotifications}
-                  />
-                </SettingRow>
-
-                <SettingRow
-                  label="SOC 2 Export Schedule"
-                  sublabel="Automated compliance report cadence"
-                >
-                  <select
-                    id="soc2-export"
-                    value={soc2Export}
-                    onChange={(e) => setSoc2Export(e.target.value)}
-                    className={selectClass}
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="off">Off</option>
-                  </select>
                 </SettingRow>
               </div>
 

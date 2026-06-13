@@ -19,6 +19,10 @@ importers:
         version: 5.9.2
 
   apps/landing-page:
+    dependencies:
+      requirements.txt:
+        specifier: link:services\gateway\requirements.txt
+        version: link:services/gateway/requirements.txt
     devDependencies:
       serve:
         specifier: ^14.2.4
@@ -83,6 +87,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
+      requirements.txt:
+        specifier: link:services\gateway\requirements.txt
+        version: link:services/gateway/requirements.txt
       tailwind-merge:
         specifier: ^2.5.5
         version: 2.6.1
@@ -122,6 +129,10 @@ importers:
         version: 5.9.2
 
   packages/eslint-config:
+    dependencies:
+      requirements.txt:
+        specifier: link:services\gateway\requirements.txt
+        version: link:services/gateway/requirements.txt
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -157,7 +168,11 @@ importers:
         specifier: ^8.50.0
         version: 8.50.0(eslint@9.39.1(jiti@2.7.0))(typescript@5.9.2)
 
-  packages/typescript-config: {}
+  packages/typescript-config:
+    dependencies:
+      requirements.txt:
+        specifier: link:services\gateway\requirements.txt
+        version: link:services/gateway/requirements.txt
 
   packages/ui:
     dependencies:
@@ -167,6 +182,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
+      requirements.txt:
+        specifier: link:services\gateway\requirements.txt
+        version: link:services/gateway/requirements.txt
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*

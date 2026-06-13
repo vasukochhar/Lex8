@@ -30,43 +30,6 @@ def test_full_app_import_and_health_route():
     assert response.headers["X-Request-ID"]
 
 
-def test_modules_and_module_health_routes_cover_all_modules():
-    modules_response = client.get("/api/v1/modules")
-    health_response = client.get("/api/v1/health/modules")
-
-    assert modules_response.status_code == 200
-    assert health_response.status_code == 200
-    modules = modules_response.json()["modules"]
-    health_modules = health_response.json()["modules"]
-    assert len(modules) == 8
-    assert len(health_modules) == 8
-    assert {module["archetype"] for module in modules} == {
-        "drafter",
-        "filer",
-        "vault_vision",
-        "library",
-        "forecast",
-        "war_room",
-        "validator",
-        "case_synth",
-    }
-    assert health_response.json()["anchor8"]["internals"] == "external"
-
-
-def test_library_validator_and_war_room_routes():
-    library = client.post("/api/v1/library/search", json={"query": "veil piercing", "matter_id": "demo-acme-beta"})
-    validator = client.post("/api/v1/validator/validate", json={"matter_id": "demo-acme-beta", "draft_id": "draft_demo_msj_001"})
-    war_room = client.post("/api/v1/war-room/sessions", json={"matter_id": "demo-acme-beta", "issue": "Veil piercing"})
-
-    assert library.status_code == 200
-    assert library.json()["status"] == "mock_results"
-    assert len(library.json()["results"]) >= 1
-    assert validator.status_code == 200
-    assert validator.json()["status"] == "mock_validated"
-    assert war_room.status_code == 200
-    assert war_room.json()["session_id"] == "warroom_demo_acme_beta"
-
-
 def test_existing_demo_routes_have_frontend_stable_shapes():
     assert client.get("/api/v1/drafter/templates").json()["templates"][0]["id"]
     assert client.post("/api/v1/drafter/drafts", json={"matter_id": "demo-acme-beta"}).json()["draft_id"] == "draft_demo_msj_001"

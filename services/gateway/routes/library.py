@@ -3,7 +3,6 @@ from typing import Any
 from fastapi import APIRouter
 
 from cache.embedding_cache import embedding_cache
-from integrations.anchor8_client import anchor8_client
 from response_utils import module_response
 
 
@@ -40,13 +39,11 @@ async def search_library(payload: dict[str, Any]) -> dict[str, Any]:
     matter_id = payload.get("matter_id", "demo-acme-beta")
     cache_key = f"demo:{matter_id}:{query.lower()}"
     await embedding_cache.set(cache_key, [0.12, 0.31, 0.57], {"query": query, "matter_id": matter_id})
-    anchor8 = await anchor8_client.observe("library", "search", {"query": query, "matter_id": matter_id})
     legacy = {
         "query": query,
         "matter_id": matter_id,
         "status": "mock_results",
         "results": DEMO_RESULTS,
         "cache": await embedding_cache.status(),
-        "anchor8": anchor8,
     }
     return module_response("library", legacy, status="ok", legacy=legacy)

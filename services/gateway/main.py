@@ -17,19 +17,14 @@ from middleware.rate_limit import rate_limit_middleware
 from middleware.idempotency import idempotency_middleware
 from cache.embedding_cache import embedding_cache
 from cache.threshold_store import threshold_store
-from integrations.anchor8_client import anchor8_client
 from observability import init_sentry_if_configured, observability_status, record_request, render_metrics
 from routes import (
     case_synth,
-    defensibility,
     drafter,
     filer,
     forecast,
-    lane4,
     library,
-    validator,
     vault_vision,
-    war_room,
 )
 
 MODULES = [
@@ -38,8 +33,6 @@ MODULES = [
     {"name": "Vault Vision", "archetype": "vault_vision", "status": "product_mock"},
     {"name": "Library", "archetype": "library", "status": "product_mock"},
     {"name": "Forecast", "archetype": "forecast", "status": "product_mock"},
-    {"name": "War Room", "archetype": "war_room", "status": "product_mock"},
-    {"name": "Validator", "archetype": "validator", "status": "product_mock"},
     {"name": "Case Synth", "archetype": "case_synth", "status": "product_mock"},
 ]
 
@@ -90,11 +83,7 @@ app.include_router(filer.router)
 app.include_router(vault_vision.router)
 app.include_router(forecast.router)
 app.include_router(case_synth.router)
-app.include_router(defensibility.router)
-app.include_router(lane4.router)
 app.include_router(library.router)
-app.include_router(validator.router)
-app.include_router(war_room.router)
 
 
 # ── Request ID middleware ──
@@ -165,11 +154,6 @@ async def module_health():
             }
             for module in MODULES
         ],
-        "anchor8": {
-            "mode": "mock" if anchor8_client.mock_mode else "stored",
-            "gateway_configured": bool(anchor8_client.base_url),
-            "internals": "external",
-        },
         "cache": {
             "embedding_cache": embedding_status,
             "threshold_store": threshold_status,

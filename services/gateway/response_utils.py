@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Awaitable, Callable
 
-from integrations.anchor8_client import anchor8_client
 
 
 STANDARD_STATUS = {"ok", "degraded", "blocked", "error"}
@@ -28,7 +27,6 @@ def module_response(
         "data": data,
         "error": error,
         "degradation_reason": degradation_reason,
-        "anchor8_mode": "mock" if anchor8_client.mock_mode else "stored",
     }
     if legacy:
         response.update(legacy)

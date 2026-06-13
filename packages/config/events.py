@@ -9,10 +9,8 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 # ── Topic definitions ──
 TOPICS = {
-    "lex8.actions.created": "Every agent action (for Anchor8 observe mode)",
-    "lex8.verdicts.delivered": "Anchor8 verdicts (for UI streaming)",
+    "lex8.actions.created": "Every agent action",
     "lex8.documents.ingested": "New document uploaded (triggers Vault Vision)",
-    "lex8.lane4.escalated": "Lane 4 human review needed",
     "lex8.drift.detected": "Model drift alert",
 }
 

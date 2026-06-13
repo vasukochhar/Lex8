@@ -79,7 +79,8 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         for (const chunk of chunks) {
-          controller.enqueue(new TextEncoder().encode(chunk));
+          // AI SDK v4 expects the stream data protocol format: 0:"chunk text"\n
+          controller.enqueue(new TextEncoder().encode(`0:${JSON.stringify(chunk)}\n`));
           // Small dynamic delay to mimic real LLM token streaming
           const delay = chunk.length > 5 ? 20 : 10;
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
+        'x-vercel-ai-data-stream': 'v1',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       },

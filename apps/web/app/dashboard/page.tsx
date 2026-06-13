@@ -37,7 +37,7 @@ import { useCompletion } from 'ai/react';
 
 import { cn } from '../../lib/utils';
 import { lex8Api } from '../../lib/api';
-import { useDrafterStore, Matter, Citation, ComplianceCheck, TribunalReview } from '../../lib/store';
+import { useDrafterStore, Matter } from '../../lib/store';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -51,10 +51,6 @@ import {
 } from '../../components/ui/dropdown-menu';
 import { MatterLibrary } from '../../components/MatterLibrary';
 import { MatterDashboard } from '../../components/MatterDashboard';
-import { ValidatorRules } from '../../components/ValidatorRules';
-import { TribunalModule } from '../../components/TribunalModule';
-import { TelemetryModule } from '../../components/TelemetryModule';
-import { WarRoomSimulator } from '../../components/WarRoomSimulator';
 import { CaseSynth } from '../../components/CaseSynth';
 import {
   Dialog,
@@ -105,8 +101,6 @@ export default function Lex8Drafter() {
   const {
     sidebarCollapsed,
     setSidebarCollapsed,
-    activeRightTab,
-    setActiveRightTab,
     matters,
     activeMatterId,
     setActiveMatterId,
@@ -118,21 +112,6 @@ export default function Lex8Drafter() {
     setActiveTemplateId,
     isGenerating,
     setIsGenerating,
-    citations,
-    setCitations,
-    selectedCitationId,
-    setSelectedCitationId,
-    complianceChecks,
-    setComplianceChecks,
-    tribunalReviews,
-    setTribunalReviews,
-    activeTribunalReviewId,
-    setActiveTribunalReviewId,
-    auditLogs,
-    addAuditLog,
-    clearAuditLogs,
-    isOfflineMode,
-    setIsOfflineMode,
     isStreaming,
     setIsStreaming,
     streamPhase,
@@ -143,8 +122,6 @@ export default function Lex8Drafter() {
 
   // Local React States
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
-  const [adminOverrideCode, setAdminOverrideCode] = React.useState<string>('');
-  const [showOverrideDialog, setShowOverrideDialog] = React.useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = React.useState(false);
   const [tickerMessage, setTickerMessage] = React.useState('SYS: IDLE. Ready for compile/verify sequence.');
   const [tokensPerSecond, setTokensPerSecond] = React.useState(0);
@@ -169,87 +146,12 @@ export default function Lex8Drafter() {
     },
   });
 
-  // Lane 2 Intercept Handler
-  const handleLane2Intercept = (partialCompletion: string) => {
-    // 1. Halt stream immediately
-    stop();
-
-    // 2. Set generating & streaming states
-    setIsStreaming(false);
-    setStreamPhase('intercepted');
-    setIsGenerating(false);
-    
-    // Set draftText to the truncated text
-    setDraftText(partialCompletion);
-
-    // 3. Switch active right tab to Tribunal side panel
-    setActiveRightTab('tribunal');
-
-    // 4. Mark Henderson citation as blocked (red warning status)
-    const updatedCitations = useDrafterStore.getState().citations.map((c) => {
-      if (c.id === 'cit-henderson') {
-        return {
-          ...c,
-          status: 'blocked' as const,
-          rahsScore: 92,
-          snippet: 'Anchor8 citation lookup failed: "Henderson v. Continental Marine" is non-existent precedent.',
-        };
-      }
-      return c;
-    });
-    setCitations(updatedCitations);
-
-    // 5. Update compliance check to fail
-    const updatedCompliance = useDrafterStore.getState().complianceChecks.map((check) => {
-      if (check.ruleId === 'FRCP-11') {
-        return {
-          ...check,
-          status: 'fail' as const,
-          message: 'CRITICAL WARNING: Hallucinated precedent Henderson v. Continental Marine detected.',
-        };
-      }
-      return check;
-    });
-    setComplianceChecks(updatedCompliance);
-
-    // 6. Update tribunal review status to pending
-    const updatedReviews = useDrafterStore.getState().tribunalReviews.map((r) => {
-      if (r.id === 'rev-henderson') {
-        return {
-          ...r,
-          status: 'pending' as const,
-        };
-      }
-      return r;
-    });
-    setTribunalReviews(updatedReviews);
-
-    // 7. Write to audit logs
-    addAuditLog({
-      level: 'critical',
-      module: 'Lane-2-Intercept',
-      message: 'LANE 2 INTERCEPT ENGAGED: Hallucinated authority "Henderson v. Continental Marine" detected in real-time stream. Halting stream.',
-    });
-    addAuditLog({
-      level: 'info',
-      module: 'Drafter',
-      message: 'Drafting execution stream paused. Forwarded case review to Tribunal Adjudication queue.',
-    });
-
-    triggerToast('Lane 2 Intercept Engaged: Out-of-Distribution Precedent Blocked');
-  };
-
   // Vercel AI SDK Stream Hook
   const { completion, complete, stop, isLoading } = useCompletion({
     api: '/api/completion',
     onResponse: (response) => {
       setIsStreaming(true);
       setStreamPhase('streaming');
-      addAuditLog({
-        level: 'info',
-        module: 'Drafter',
-        message: 'Initiated legal drafting sequence. Streaming draft...',
-      });
     },
     onFinish: (prompt, completionValue) => {
       setIsStreaming(false);
@@ -259,21 +161,11 @@ export default function Lex8Drafter() {
       // Update store text so other panels can inspect
       setDraftText(completionValue);
       
-      addAuditLog({
-        level: 'info',
-        module: 'Drafter',
-        message: 'Legal drafting stream complete.',
-      });
     },
     onError: (err) => {
       setIsStreaming(false);
       setStreamPhase('error');
       setIsGenerating(false);
-      addAuditLog({
-        level: 'error',
-        module: 'Drafter',
-        message: `Drafting stream encountered an error: ${err.message}`,
-      });
       triggerToast('Drafting stream failed');
     }
   });
@@ -281,16 +173,6 @@ export default function Lex8Drafter() {
   // Sync streaming completion with the TipTap editor
   React.useEffect(() => {
     if (completion && editor && isLoading) {
-      // Look for the hallucinated citation
-      if (completion.includes('See Henderson v. Continental Marine')) {
-        const targetStr = 'See Henderson v. Continental Marine';
-        const truncated = completion.slice(0, completion.indexOf(targetStr) + targetStr.length) + ', 412 F.3d 891 (5th Cir. 2005). [LANE 2 INTERCEPT ENGAGED]';
-        
-        editor.commands.setContent(textToHtml(truncated), false);
-        handleLane2Intercept(truncated);
-        return;
-      }
-
       editor.commands.setContent(textToHtml(completion), false);
       
       // Auto scroll the editor element
@@ -317,12 +199,10 @@ export default function Lex8Drafter() {
     if (isLoading) {
       const messages = [
         'PARSING CITATION SLOTS...',
-        'CONNECTING TO ANCHOR8 VAULT...',
-        'STREAMING MOTION DECREE PARAGRAPH 1...',
+                'STREAMING MOTION DECREE PARAGRAPH 1...',
         'EVALUATING FIDUCIARY DUTY PRECEDENTS...',
         'COMPILING LAW BRIEF DOCUMENT STRUCTURE...',
-        'RUNNING INLINE VEIL PIERCING SANITY CHECKS...',
-      ];
+              ];
       let idx = 0;
       setTokensPerSecond(Math.floor(Math.random() * 25) + 120); // 120-145 tk/s
       
@@ -337,13 +217,6 @@ export default function Lex8Drafter() {
     }
     return () => clearInterval(interval);
   }, [isLoading]);
-
-  // Query for backend health
-  const { data: healthData, isLoading: healthLoading, isError: healthError } = useQuery({
-    queryKey: ['moduleHealth'],
-    queryFn: lex8Api.moduleHealth,
-    refetchInterval: 30000,
-  });
 
   // Query for templates
   const { data: templatesData } = useQuery({
@@ -390,103 +263,6 @@ export default function Lex8Drafter() {
     triggerToast(`Template switched to ${name}`);
     setShowTemplateDialog(false);
   };
-
-  // Run the full Lex8 Gatekeeper/Anchor8 Demo validation sequence
-  const executeDemoSequence = async () => {
-    if (isLoading || isGenerating) return;
-    setIsGenerating(true);
-    setIsStreaming(true);
-    setStreamPhase('initiating');
-    addAuditLog({
-      level: 'info',
-      module: 'Drafter',
-      message: 'Querying upstream matter library and initiating text generation stream...',
-    });
-    
-    // Call Vercel AI SDK complete
-    complete(activeTemplateId);
-  };
-
-  // Handle Tribunal Administrative Code Override
-  const handleOverrideAdjudication = () => {
-    if (adminOverrideCode.trim() === 'OVERRIDE_ADMIN') {
-      // Update citation state to verified
-      const updatedCitations = citations.map((c) => {
-        if (c.id === 'cit-henderson') {
-          return {
-            ...c,
-            status: 'verified' as const,
-            rahsScore: 0,
-            snippet: 'Precedent manually validated by tribunal under Administrative Code OVERRIDE_ADMIN. Citation approved.',
-          };
-        }
-        return c;
-      });
-      setCitations(updatedCitations);
-
-      // Update tribunal review state
-      const updatedReviews = tribunalReviews.map((r) => {
-        if (r.id === 'rev-henderson') {
-          return {
-            ...r,
-            status: 'adjudicated' as const,
-            auditorComments: [...r.auditorComments, 'Tribunal Admin Override applied successfully by Lead Auditor.'],
-          };
-        }
-        return r;
-      });
-      setTribunalReviews(updatedReviews);
-
-      // Add audit log
-      addAuditLog({
-        level: 'info',
-        module: 'Tribunal',
-        message: 'Lead Auditor applied Administrative Code OVERRIDE_ADMIN. Unblocked drafting operations.',
-      });
-
-      // Clear warning state in compliance checks
-      const updatedCompliance = complianceChecks.map((check) => {
-        if (check.ruleId === 'FRCP-11') {
-          return {
-            ...check,
-            status: 'pass' as const,
-            message: 'Manual override engaged. Citation is authorized for court inclusion.',
-          };
-        }
-        return check;
-      });
-      setComplianceChecks(updatedCompliance);
-
-      // Remove intercept suffix if present and set streamPhase back to idle
-      const cleaned = draftText.replace(' [LANE 2 INTERCEPT ENGAGED]', '');
-      setDraftText(cleaned);
-      setStreamPhase('idle');
-
-      triggerToast('Tribunal override successful. Citation authorized.');
-      setShowOverrideDialog(false);
-      setAdminOverrideCode('');
-    } else {
-      triggerToast('Invalid administrative code.');
-    }
-  };
-
-  // Keyboard shortcut simulator for Cassette Mode (Ctrl+Shift+O)
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o') {
-        e.preventDefault();
-        setIsOfflineMode(!isOfflineMode);
-        addAuditLog({
-          level: 'info',
-          module: 'Global',
-          message: isOfflineMode ? 'Online API Mode engaged.' : 'Offline Cassette replay system engaged.',
-        });
-        triggerToast(isOfflineMode ? 'Online Mode Active' : 'Offline Cassette Mode Active');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOfflineMode, setIsOfflineMode]);
 
   // Simulated Autosave effect
   React.useEffect(() => {
@@ -558,11 +334,6 @@ export default function Lex8Drafter() {
                       onClick={() => {
                         setActiveMatterId(matter.id);
                         setDraftTitle(`${matter.name} — MSJ Brief`);
-                        addAuditLog({
-                          level: 'info',
-                          module: 'MatterContext',
-                          message: `Active matter context set to ${matter.name}.`,
-                        });
                         triggerToast(`Switched context to ${matter.name}`);
                       }}
                       className={cn(
@@ -596,448 +367,12 @@ export default function Lex8Drafter() {
                   <button
                     onClick={() => {
                       setActiveModule('dashboard');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Matter Dashboard.' });
+                      triggerToast(`Anchor8 Shield ${!isAnchor8Enabled ? 'Engaged' : 'Disengaged'}`);
                     }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'dashboard'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
                   >
-                    <Layers className={cn("h-3.5 w-3.5", activeModule === 'dashboard' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>Matter Dashboard</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Matter Dashboard</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('drafter');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Drafter Workspace.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'drafter'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <FileText className={cn("h-3.5 w-3.5", activeModule === 'drafter' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>Drafter Workspace</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Drafter Workspace</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('library');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Matter Library.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'library'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <Search className={cn("h-3.5 w-3.5", activeModule === 'library' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>Matter Library</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Matter Library</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('validator');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Validator Rules.' });
-                    }}
-                    className={cn(
-                      "flex items-center justify-between px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'validator'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className={cn("h-3.5 w-3.5", activeModule === 'validator' ? "text-[#0033aa]" : "text-neutral-500")} />
-                      {!sidebarCollapsed && <span>Validator Rules</span>}
-                    </div>
-                    {!sidebarCollapsed && complianceChecks.some((c) => c.status === 'fail') && (
-                      <div className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                    )}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Validator Rules</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('tribunal');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Tribunal Adjudicator.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'tribunal'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <Scale className={cn("h-3.5 w-3.5", activeModule === 'tribunal' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>Tribunal Adjudicator</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Tribunal Adjudicator</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('warroom');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to War Room Strategy Simulator.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'warroom'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <Target className={cn("h-3.5 w-3.5", activeModule === 'warroom' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>War Room Simulator</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">War Room Simulator</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('telemetry');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Telemetry Observability.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'telemetry'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <Activity className={cn("h-3.5 w-3.5", activeModule === 'telemetry' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>System Telemetry</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">System Telemetry</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('casesynth');
-                      addAuditLog({ level: 'info', module: 'Navigation', message: 'Switched module focus to Case Synth Legal Intelligence.' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 w-full text-left font-mono transition-colors cursor-pointer",
-                      activeModule === 'casesynth'
-                        ? "bg-white text-neutral-900 border-l-2 border-[#0033aa] font-semibold"
-                        : "text-neutral-500 hover:bg-neutral-200"
-                    )}
-                  >
-                    <BookOpen className={cn("h-3.5 w-3.5", activeModule === 'casesynth' ? "text-[#0033aa]" : "text-neutral-500")} />
-                    {!sidebarCollapsed && <span>Case Synth</span>}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">Case Synth</TooltipContent>}
-              </Tooltip>
-            </div>
-
-            {/* Template Drawer (Quick Switcher) */}
-            {!sidebarCollapsed && (
-              <div className="mt-4 pt-4 border-t border-neutral-200 px-3">
-                <span className="block text-[9px] font-mono uppercase text-neutral-400 font-semibold mb-2">
-                  Drafting Templates
-                </span>
-                <div className="space-y-1">
-                  <Button
-                    variant={activeTemplateId === 'msj' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="w-full justify-start font-mono text-[10px] text-left truncate"
-                    onClick={() => handleSelectTemplate('msj', 'Motion for Summary Judgment')}
-                  >
-                    Motion Summary Judgment
+                    <Shield className={cn("h-3 w-3", isAnchor8Enabled ? "text-indigo-600" : "text-neutral-400")} />
+                    <span>{isAnchor8Enabled ? 'Shield ON' : 'Shield OFF'}</span>
                   </Button>
-                  <Button
-                    variant={activeTemplateId === 'mtd' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="w-full justify-start font-mono text-[10px] text-left truncate"
-                    onClick={() => handleSelectTemplate('mtd', 'Motion to Dismiss')}
-                  >
-                    Motion to Dismiss
-                  </Button>
-                  <Button
-                    variant={activeTemplateId === 'memo' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="w-full justify-start font-mono text-[10px] text-left truncate"
-                    onClick={() => handleSelectTemplate('memo', 'Internal Memorandum')}
-                  >
-                    Privileged Memo
-                  </Button>
-                </div>
-              </div>
-            )}
-          </ScrollArea>
-
-          {/* User Avatar + Dropdown */}
-          <div className="border-t border-neutral-200 px-2 py-1.5 bg-neutral-50">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    'flex items-center gap-2 w-full rounded-none hover:bg-neutral-200 transition-colors px-1 py-1 cursor-pointer',
-                    sidebarCollapsed ? 'justify-center' : 'justify-start'
-                  )}
-                >
-                  {/* Avatar circle */}
-                  <div className="h-6 w-6 rounded-full bg-[#0033aa] flex items-center justify-center shrink-0">
-                    <span className="text-white font-mono font-bold text-[10px] leading-none">N</span>
-                  </div>
-                  {!sidebarCollapsed && (
-                    <div className="flex flex-col items-start leading-tight overflow-hidden">
-                      <span className="font-mono font-semibold text-[10px] text-neutral-800 truncate">Nimish Mittal</span>
-                      <span className="font-mono text-[8px] text-neutral-400 truncate">Lead Auditor</span>
-                    </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="start"
-                className="w-44 font-mono text-[10px]"
-              >
-                <DropdownMenuLabel className="text-[9px] uppercase text-neutral-400 font-semibold tracking-wide pb-0">Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="flex items-center gap-2 cursor-pointer no-underline text-neutral-700">
-                    <UserCheck className="h-3 w-3" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings" className="flex items-center gap-2 cursor-pointer no-underline text-neutral-700">
-                    <Terminal className="h-3 w-3" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/" className="flex items-center gap-2 cursor-pointer no-underline text-red-600 hover:text-red-700">
-                    <X className="h-3 w-3" />
-                    Sign Out
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Bottom Cassette/Status Toggles */}
-          <div className="border-t border-neutral-200 p-2 bg-neutral-50 space-y-1">
-            {!sidebarCollapsed && (
-              <>
-                <div className="flex items-center justify-between text-[9px] font-mono text-neutral-500 pb-1">
-                  <span>Backend Gatekeeper</span>
-                  <span className={cn(
-                    'inline-block px-1 rounded-[1px] font-bold text-[8px]',
-                    healthData?.status === 'ok' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                  )}>
-                    {healthLoading ? 'CONNECTING' : healthData?.status === 'ok' ? 'ACTIVE' : 'DEGRADED'}
-                  </span>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    'w-full font-mono text-[9px] h-6 justify-between select-none cursor-pointer',
-                    isOfflineMode ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white'
-                  )}
-                  onClick={() => {
-                    setIsOfflineMode(!isOfflineMode);
-                    addAuditLog({
-                      level: 'info',
-                      module: 'Global',
-                      message: `Mode toggled to: ${!isOfflineMode ? 'Offline Cassette Replay' : 'Live Gateway REST API'}.`,
-                    });
-                    triggerToast(!isOfflineMode ? 'Cassette Mode Engaged' : 'Online Mode Restored');
-                  }}
-                >
-                  <div className="flex items-center gap-1">
-                    <Database className="h-2.5 w-2.5" />
-                    <span>{isOfflineMode ? 'Cassette Mode' : 'REST Gateway'}</span>
-                  </div>
-                  <div className={cn('h-1.5 w-1.5 rounded-full', isOfflineMode ? 'bg-amber-500 animate-pulse' : 'bg-green-500')} />
-                </Button>
-              </>
-            )}
-            
-            {sidebarCollapsed && (
-              <div className="flex justify-center py-1">
-                <div className={cn('h-2 w-2 rounded-full', isOfflineMode ? 'bg-amber-500' : 'bg-green-500')} />
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* ========================================================================================= */}
-        {/* CENTER COLUMN: DRAFTING WORKSPACE                                                         */}
-        {/* ========================================================================================= */}
-        <main className="flex-1 flex flex-col min-w-0 bg-white border-r border-neutral-200 z-10">
-          {activeModule === 'dashboard' ? (
-            <>
-              {/* Matter Dashboard Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-[#0033aa] font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Matter Strategy Dashboard</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Engine: Active</span>
-                </div>
-              </header>
-              
-              <MatterDashboard />
-            </>
-          ) : activeModule === 'library' ? (
-            <>
-              {/* Matter Library Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-neutral-400 font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Matter Intel Library</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Total Matters: {matters.length}</span>
-                </div>
-              </header>
-              
-              <MatterLibrary />
-            </>
-          ) : activeModule === 'validator' ? (
-            <>
-              {/* Validator Rules Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-neutral-400 font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Validator Rulesets & Governance</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Status: Operational</span>
-                </div>
-              </header>
-              
-              <ValidatorRules />
-            </>
-          ) : activeModule === 'tribunal' ? (
-            <>
-              {/* Tribunal Module Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-[#0033aa] font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Tribunal Consensus & Debate</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Quorum: 2 Juror Models Active</span>
-                </div>
-              </header>
-              
-              <TribunalModule />
-            </>
-          ) : activeModule === 'telemetry' ? (
-            <>
-              {/* Telemetry Module Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-[#0033aa] font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Telemetry & Observability Console</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Stream: Connected</span>
-                </div>
-              </header>
-              
-              <TelemetryModule />
-            </>
-          ) : activeModule === 'warroom' ? (
-            <>
-              {/* War Room Simulator Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-[#0033aa] font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">War Room Litigation Simulator</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Engine: Active (Monte Carlo)</span>
-                </div>
-              </header>
-              
-              <WarRoomSimulator />
-            </>
-          ) : activeModule === 'casesynth' ? (
-            <>
-              {/* Case Synth Module Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none shrink-0">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-[#0033aa] font-bold">MODULE:</span>
-                  <span className="font-mono font-bold text-neutral-800 text-xs px-1">Case Synthesis & Legal Intelligence</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[9px] text-neutral-400">
-                  <span>Engine: Active (BERT-Legal)</span>
-                </div>
-              </header>
-              
-              <CaseSynth />
-            </>
-          ) : (
-            <>
-              {/* Page/Draft Context Header */}
-              <header className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-50 select-none">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-mono text-neutral-400 font-bold">DRAFT:</span>
-                  <input
-                    type="text"
-                    value={draftTitle}
-                    onChange={(e) => setDraftTitle(e.target.value)}
-                    className="bg-transparent border-0 hover:bg-neutral-100 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-neutral-300 font-mono font-bold text-neutral-800 px-1 py-0.5 max-w-sm truncate text-xs"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-1.5">
-                  {/* Tokenized verified indicator */}
-                  {citations.every((c) => c.status === 'verified') && (
-                    <div className="flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 font-mono text-[9px] font-semibold">
-                      <Check className="h-3 w-3" />
-                      <span>ANCHOR8 PASSED</span>
-                    </div>
-                  )}
-                  {citations.some((c) => c.status === 'blocked') && (
-                    <div className="flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 font-mono text-[9px] font-semibold animate-pulse">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>ANCHOR8 BLOCKED</span>
-                    </div>
-                  )}
 
                   <Button
                     variant="outline"
@@ -1045,11 +380,6 @@ export default function Lex8Drafter() {
                     className="gap-1 rounded-none h-6 font-mono text-[10px] cursor-pointer"
                     onClick={() => {
                       localStorage.setItem('lex8_autosave_content', draftText);
-                      addAuditLog({
-                        level: 'info',
-                        module: 'Drafter',
-                        message: 'Draft manual save invoked to localStorage DB.',
-                      });
                       triggerToast('Draft saved to storage');
                     }}
                   >
@@ -1180,12 +510,7 @@ export default function Lex8Drafter() {
                           onClick={() => {
                             setSelectedCitationId(c.id);
                             setActiveRightTab('anchor8');
-                            addAuditLog({
-                              level: 'info',
-                              module: 'Anchor8',
-                              message: `Focused citation audit: ${c.caseName}.`,
-                            });
-                          }}
+                                                }}
                           className={cn(
                             'flex items-center gap-1.5 px-2 py-0.5 border font-mono text-[9px] font-semibold transition-colors cursor-pointer',
                             c.id === selectedCitationId && 'ring-1 ring-[#0033aa]',
@@ -1519,12 +844,7 @@ export default function Lex8Drafter() {
                                 tribunalReviews.map(r => r.id === rev.id ? { ...r, status: 'adjudicated' } : r)
                               );
 
-                              addAuditLog({
-                                level: 'info',
-                                module: 'Tribunal',
-                                message: 'Proposed Meinhard precedent replacement accepted. Compliance errors resolved.',
-                              });
-
+                        
                               triggerToast('Suggested correction injected.');
                             }}
                           >
