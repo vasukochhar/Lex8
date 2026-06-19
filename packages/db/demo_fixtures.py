@@ -120,6 +120,119 @@ AGENT_ACTIONS = [
     },
 ]
 
+EVE_AUDITOR_AUDITS = [
+    {
+        "audit_id": "eve_audit_demo_henderson",
+        "matter_id": DEMO_MATTER_SLUG,
+        "source_module": "drafter",
+        "input_output_id": "draft_demo_msj_001",
+        "overall_status": "blocked",
+        "validator_verdict": "BLOCK",
+        "lane": 4,
+        "risk_score": 80,
+        "feature_name": "Eve Auditor",
+        "demo_trigger": "fabricated Henderson citation",
+    },
+    {
+        "audit_id": "eve_audit_demo_p14_privilege",
+        "matter_id": DEMO_MATTER_SLUG,
+        "source_module": "filer",
+        "input_output_id": "filing_demo_privileged_p14",
+        "overall_status": "blocked",
+        "validator_verdict": "BLOCK",
+        "lane": 4,
+        "risk_score": 80,
+        "feature_name": "Eve Auditor",
+        "demo_trigger": "Exhibit P-14 privilege/redaction risk",
+    },
+    {
+        "audit_id": "eve_audit_demo_bias_proxy",
+        "matter_id": DEMO_MATTER_SLUG,
+        "source_module": "forecast",
+        "input_output_id": "forecast_demo_bias_block",
+        "overall_status": "warning",
+        "validator_verdict": "MODIFY",
+        "lane": 2,
+        "risk_score": 55,
+        "feature_name": "Eve Auditor",
+        "demo_trigger": "protected-class proxy risk",
+    },
+]
+
+DMS_WORKSPACES = [
+    {
+        "provider": "imanage",
+        "workspace_id": "im_ws_acme_beta",
+        "name": "Acme Corp. v. Beta Industries",
+        "matter_id": DEMO_MATTER_SLUG,
+        "status": "connected_mock",
+        "documents": [
+            {
+                "document_id": "im_doc_p14",
+                "title": "Redacted Privileged Counsel Email",
+                "document_type": "exhibit",
+                "lex8_document_key": "P-14",
+                "version": "3",
+                "status": "available_mock",
+            },
+            {
+                "document_id": "im_doc_depo_chen",
+                "title": "Deposition Transcript - Sarah Chen",
+                "document_type": "deposition",
+                "lex8_document_key": "DEPO-CHEN",
+                "version": "1",
+                "status": "available_mock",
+            },
+        ],
+    },
+    {
+        "provider": "netdocuments",
+        "workspace_id": "nd_ws_acme_beta",
+        "name": "Acme Corp. v. Beta Industries",
+        "matter_id": DEMO_MATTER_SLUG,
+        "status": "connected_mock",
+        "documents": [
+            {
+                "document_id": "nd_doc_p01",
+                "title": "Joint Venture Agreement",
+                "document_type": "exhibit",
+                "lex8_document_key": "P-01",
+                "version": "2",
+                "status": "available_mock",
+            },
+            {
+                "document_id": "nd_doc_minutes",
+                "title": "Beta Board Minutes",
+                "document_type": "exhibit",
+                "lex8_document_key": "P-23",
+                "version": "1",
+                "status": "available_mock",
+            },
+        ],
+    },
+]
+
+DMS_SYNC_JOBS = [
+    {
+        "sync_id": "sync_imanage_im_ws_acme_beta_im_doc_p14",
+        "provider": "imanage",
+        "workspace_id": "im_ws_acme_beta",
+        "document_id": "im_doc_p14",
+        "matter_id": DEMO_MATTER_SLUG,
+        "status": "synced",
+        "message": "Demo iManage Exhibit P-14 sync is available in Lex8.",
+    },
+    {
+        "sync_id": "sync_netdocuments_nd_ws_acme_beta_nd_doc_p01",
+        "provider": "netdocuments",
+        "workspace_id": "nd_ws_acme_beta",
+        "document_id": "nd_doc_p01",
+        "matter_id": DEMO_MATTER_SLUG,
+        "status": "synced",
+        "message": "Demo NetDocuments P-01 sync is available in Lex8.",
+    },
+]
+
 LANE4_REVIEWS = [
     {
         "review_id": "review_demo_privileged_filing",
@@ -210,4 +323,7 @@ def demo_fixture_summary() -> dict:
         "agent_actions": AGENT_ACTIONS,
         "lane4_reviews": LANE4_REVIEWS,
         "defensibility_narratives": DEFENSIBILITY_NARRATIVES,
+        "eve_auditor_audits": EVE_AUDITOR_AUDITS,
+        "dms_workspaces": DMS_WORKSPACES,
+        "dms_sync_jobs": DMS_SYNC_JOBS,
     }

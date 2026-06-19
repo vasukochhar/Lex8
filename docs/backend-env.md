@@ -46,3 +46,10 @@ Anchor8 boundary: Lex8 stores and displays Anchor8-returned IDs, verdicts, lane 
 - `GET /metrics` exposes lightweight Prometheus-style text metrics for gateway request counts, per-module route counts, health, and Sentry enabled status.
 - `SENTRY_DSN` is optional. If it is empty, Sentry is a no-op. If it is set but `sentry_sdk` is not installed, startup continues and reports Sentry disabled.
 - `OTEL_EXPORTER_OTLP_ENDPOINT` is reserved for future OpenTelemetry wiring. OpenTelemetry is not enabled in the demo backend yet.
+
+## Eve Auditor and DMS Integrations
+
+- `POST /api/v1/validator/audit-output` runs Eve Auditor, a deterministic Validator QA pass for AI outputs. It returns `feature_name: "Eve Auditor"`, a Validator verdict, lane, risk score, findings, human-review requirement, and a mock verification certificate. Demo rules catch the fabricated Henderson citation, Exhibit P-14 privilege/redaction risk, bias proxy risk, quote/source mismatch, unsupported claims, and filing-readiness warnings.
+- `GET /api/v1/validator/audits/{audit_id}` and `GET /api/v1/validator/audits?matter_id=demo-acme-beta` read in-memory demo audit reports created during the gateway process.
+- `GET /api/v1/integrations/dms/providers` lists mock iManage and NetDocuments connectors. The DMS routes also expose workspace listing, document listing, document sync, and sync status under `/api/v1/integrations/dms/...`.
+- These integrations are demo scaffolds only. They do not perform OAuth, store vendor credentials, or call external vendor APIs.

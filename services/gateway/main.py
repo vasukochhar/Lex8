@@ -20,10 +20,12 @@ from cache.threshold_store import threshold_store
 from observability import init_sentry_if_configured, observability_status, record_request, render_metrics
 from routes import (
     case_synth,
+    dms_integrations,
     drafter,
     filer,
     forecast,
     library,
+    validator,
     vault_vision,
 )
 
@@ -34,6 +36,8 @@ MODULES = [
     {"name": "Library", "archetype": "library", "status": "product_mock"},
     {"name": "Forecast", "archetype": "forecast", "status": "product_mock"},
     {"name": "Case Synth", "archetype": "case_synth", "status": "product_mock"},
+    {"name": "Eve Auditor", "archetype": "validator", "status": "product_mock"},
+    {"name": "DMS Integrations", "archetype": "dms_integrations", "status": "connected_mock"},
 ]
 
 # ── Structured logging ──
@@ -84,6 +88,8 @@ app.include_router(vault_vision.router)
 app.include_router(forecast.router)
 app.include_router(case_synth.router)
 app.include_router(library.router)
+app.include_router(validator.router)
+app.include_router(dms_integrations.router)
 
 
 # ── Request ID middleware ──
