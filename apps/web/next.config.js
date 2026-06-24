@@ -2,59 +2,46 @@
 const nextConfig = {
   async rewrites() {
     return {
-      // "beforeFiles" rewrites run before Next.js checks its own file-system routes.
-      // This is the correct place for .html paths because Next.js has no .html pages
-      // of its own — it would 404 them before afterFiles ever runs.
-      beforeFiles: [
-        // Proxy any explicit .html request directly to the static server.
-        // Covers: /about.html, /product.html, /solutions.html, /pricing.html, etc.
-        {
-          source: "/:path*.html",
-          destination: "http://localhost:3002/:path*.html",
-        },
-      ],
+      beforeFiles: [],
 
-      // "afterFiles" rewrites run after Next.js checks its own pages but before
-      // the 404 fallback — safe to proxy external paths here.
       afterFiles: [
-        // Landing page root
+        // Proxy the landing page root and all marketing routes to the
+        // new Next.js landing-page app running on port 3000.
         {
           source: "/",
-          destination: "http://localhost:3002/",
+          destination: "http://localhost:3000/",
         },
-        // Marketing pages (clean URLs → .html files on the static server)
         {
           source: "/about",
-          destination: "http://localhost:3002/about.html",
+          destination: "http://localhost:3000/about",
         },
         {
           source: "/pricing",
-          destination: "http://localhost:3002/pricing.html",
+          destination: "http://localhost:3000/pricing",
         },
         {
           source: "/product",
-          destination: "http://localhost:3002/product.html",
+          destination: "http://localhost:3000/product",
         },
         {
           source: "/security",
-          destination: "http://localhost:3002/security.html",
+          destination: "http://localhost:3000/security",
         },
         {
           source: "/solutions",
-          destination: "http://localhost:3002/solutions.html",
+          destination: "http://localhost:3000/solutions",
         },
-        // Static assets (CSS, JS, images) required by the landing page
+        // Proxy Next.js internal assets (_next/*) from the landing page app
+        // so scripts and styles load correctly when pages are proxied.
         {
-          source: "/assets/:path*",
-          destination: "http://localhost:3002/assets/:path*",
+          source: "/_next/:path*",
+          destination: "http://localhost:3000/_next/:path*",
         },
       ],
 
-      // "fallback" rewrites run only when no page or afterFiles rule matched.
       fallback: [],
     };
   },
 };
 
 export default nextConfig;
-
