@@ -1,15 +1,30 @@
 import type { Metadata } from 'next';
+import { Inter, Cormorant_Upright, Geist } from "next/font/google";
 import localFont from 'next/font/local';
 import Providers from '../components/providers';
+import { cn } from '../lib/utils';
 import './globals.css';
 
-const geistSans = localFont({
-  src: './fonts/GeistVF.woff',
-  variable: '--font-geist-sans',
-});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const geistMono = localFont({
   src: './fonts/GeistMonoVF.woff',
   variable: '--font-geist-mono',
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const cormorant = Cormorant_Upright({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-cormorant-custom",
+});
+
+const zaslia = localFont({
+  src: "./fonts/Zaslia.otf",
+  variable: "--font-zaslia-custom",
 });
 
 export const metadata: Metadata = {
@@ -23,8 +38,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}>
+    <html lang="en" className={cn(inter.variable, zaslia.variable, cormorant.variable, "font-sans", geist.variable, geistMono.variable)}>
+      <body className={cn(inter.className, "antialiased bg-noise")}>
         <Providers>
           {children}
         </Providers>
@@ -32,3 +47,4 @@ export default function RootLayout({
     </html>
   );
 }
+

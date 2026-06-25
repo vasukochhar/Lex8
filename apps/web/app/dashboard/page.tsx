@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
@@ -49,6 +50,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '../../components/ui/dropdown-menu';
+import StaggeredMenu from '../../components/react-bits/StaggeredMenu';
+import PillNav from '../../components/react-bits/PillNav';
 import { MatterLibrary } from '../../components/MatterLibrary';
 import { MatterDashboard } from '../../components/MatterDashboard';
 import { CaseSynth } from '../../components/CaseSynth';
@@ -118,6 +121,9 @@ export default function Lex8Drafter() {
     setStreamPhase,
     activeModule,
     setActiveModule,
+    auditLogs,
+    addAuditLog,
+    clearAuditLogs,
   } = useDrafterStore();
 
   // Local React States
@@ -126,6 +132,75 @@ export default function Lex8Drafter() {
   const [tickerMessage, setTickerMessage] = React.useState('SYS: IDLE. Ready for compile/verify sequence.');
   const [tokensPerSecond, setTokensPerSecond] = React.useState(0);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [activeRightTab, setActiveRightTab] = React.useState<'anchor8' | 'validator' | 'tribunal' | 'telemetry'>('anchor8');
+  const [selectedCitationId, setSelectedCitationId] = React.useState<string | null>(null);
+  const [activeTribunalReviewId, setActiveTribunalReviewId] = React.useState<string | null>(null);
+  const [isAnchor8Enabled, setIsAnchor8Enabled] = React.useState(true);
+  const [showOverrideDialog, setShowOverrideDialog] = React.useState(false);
+  const [adminOverrideCode, setAdminOverrideCode] = React.useState('');
+
+  // Citation state
+  type CitationStatus = 'verified' | 'blocked' | 'pending';
+  type Citation = {
+    id: string; caseName: string; citation: string; year: number;
+    court: string; status: CitationStatus; rahsScore: number;
+    snippet: string; checkedAt: string; pinpointCite?: string;
+  };
+  const [citations, setCitations] = React.useState<Citation[]>([
+    { id: 'cit-meinhard', caseName: 'Meinhard v. Salmon', citation: '249 N.Y. 458', year: 1928, court: 'N.Y. Ct. App.', status: 'verified', rahsScore: 2, snippet: 'Co-venturers owe the duty of the finest loyalty.', checkedAt: '2026-05-20 09:12:44 UTC', pinpointCite: '464' },
+    { id: 'cit-henderson', caseName: 'Henderson v. Continental Marine', citation: '412 F.3d 891', year: 2005, court: '5th Cir.', status: 'blocked', rahsScore: 94, snippet: 'Commingling of joint venture assets is a per se breach.', checkedAt: '2026-05-20 09:13:01 UTC' },
+  ]);
+
+  // Compliance checks state
+  type ComplianceStatus = 'pass' | 'warning' | 'fail';
+  type ComplianceCheck = { id: string; ruleId: string; title: string; status: ComplianceStatus; message: string; };
+  const [complianceChecks, setComplianceChecks] = React.useState<ComplianceCheck[]>([
+    { id: 'cc-frcp11', ruleId: 'FRCP-11', title: 'Citation Verification', status: 'fail', message: 'Henderson v. Continental Marine (412 F.3d 891) flagged as unverifiable. RASH Score 94/100. Remove or replace before filing.' },
+    { id: 'cc-format', ruleId: 'LOCAL-R-12', title: 'S.D.N.Y. Formatting', status: 'pass', message: 'Document structure and caption formatting comply with S.D.N.Y. Local Rule 11.1.' },
+    { id: 'cc-word', ruleId: 'LOCAL-R-7', title: 'Word Count Limit', status: 'warning', message: 'MSJ briefs in S.D.N.Y. are capped at 8,750 words. Current draft is approaching limit.' },
+  ]);
+
+  // Tribunal review state
+  type TribunalStatus = 'pending' | 'adjudicated' | 'breached';
+  type TribunalReview = { id: string; status: TribunalStatus; reason: string; slaMinutesRemaining: number; votes: string[]; proposedCorrection?: string; auditorComments: string[]; };
+  const [tribunalReviews, setTribunalReviews] = React.useState<TribunalReview[]>([
+    { id: 'rev-henderson', status: 'pending', reason: 'Fabricated Precedent: Henderson v. Continental Marine', slaMinutesRemaining: 47, votes: ['reject', 'reject'], proposedCorrection: 'Meinhard v. Salmon, 249 N.Y. 458, 464 (1928) — validated via WASM cassette.', auditorComments: ['RASH score 94/100 — high hallucination probability.', 'Westlaw cross-check returned null result.', 'Recommend replacement with Meinhard v. Salmon.'] },
+  ]);
+
+  // Audit log state removed, now in Zustand store
+
+  // Demo sequence: simulates the AI compile + Anchor8 intercept flow
+  const executeDemoSequence = async () => {
+    if (isLoading || isGenerating) return;
+    setIsGenerating(true);
+    setStreamPhase('streaming');
+    addAuditLog({ level: 'info', module: 'Drafter', message: 'Compile & Verify sequence initiated.' });
+    triggerToast('Compile & Verify initiated…');
+
+    await complete(draftText, { body: { matter: activeMatter } });
+
+    setTimeout(() => {
+      setStreamPhase('intercepted');
+      addAuditLog({ level: 'critical', module: 'Anchor8', message: 'Lane 2 intercept: Henderson v. Continental Marine — RASH 94/100. Stream suspended.' });
+      setCitations((prev) => prev.map((c) => c.id === 'cit-henderson' ? { ...c, status: 'blocked' } : c));
+      triggerToast('Anchor8: Lane 2 Intercept Engaged');
+    }, 3200);
+  };
+
+  // Handle admin override adjudication
+  const handleOverrideAdjudication = () => {
+    if (adminOverrideCode.toUpperCase() === 'OVERRIDE_ADMIN') {
+      setTribunalReviews((prev) => prev.map((r) => ({ ...r, status: 'adjudicated' as TribunalStatus })));
+      setStreamPhase('idle');
+      addAuditLog({ level: 'warning', module: 'Tribunal', message: `Admin override authorized by passcode. Compliance checks bypassed.` });
+      triggerToast('Override authorized. Filing unlocked.');
+    } else {
+      addAuditLog({ level: 'error', module: 'Tribunal', message: 'Invalid override passcode entered.' });
+      triggerToast('Invalid override code.');
+    }
+    setAdminOverrideCode('');
+    setShowOverrideDialog(false);
+  };
 
   // TipTap Editor instance
   const editor = useEditor({
@@ -141,7 +216,7 @@ export default function Lex8Drafter() {
     },
     editorProps: {
       attributes: {
-        class: 'font-serif text-[11px] leading-6 bg-white text-neutral-800 p-4 h-full outline-hidden focus:outline-hidden min-h-[500px] overflow-y-auto [&_p]:my-0 [&_p]:min-h-[24px] [&_.ProseMirror]:outline-hidden',
+        class: 'font-cormorant text-lg leading-6 bg-white/60 backdrop-blur-md text-[#2c1a12] p-4 h-full outline-hidden focus:outline-hidden min-h-[500px] overflow-y-auto [&_p]:my-0 [&_p]:min-h-[24px] [&_.ProseMirror]:outline-hidden',
       },
     },
   });
@@ -215,7 +290,15 @@ export default function Lex8Drafter() {
       setTickerMessage('SYS: IDLE. Ready for compile/verify sequence.');
       setTokensPerSecond(0);
     }
-    return () => clearInterval(interval);
+  
+  const menuItems = [
+    { label: 'Drafter', ariaLabel: 'Go to Drafter', link: '#' },
+    { label: 'Library', ariaLabel: 'Go to Library', link: '#' },
+    { label: 'Synth', ariaLabel: 'Case Synthesis', link: '#' }
+  ];
+
+  return (
+) => clearInterval(interval);
   }, [isLoading]);
 
   // Query for templates
@@ -269,152 +352,65 @@ export default function Lex8Drafter() {
     const interval = setInterval(() => {
       localStorage.setItem('lex8_autosave_content', draftText);
     }, 5000);
-    return () => clearInterval(interval);
+  
+  const menuItems = [
+    { label: 'Drafter', ariaLabel: 'Go to Drafter', link: '#' },
+    { label: 'Library', ariaLabel: 'Go to Library', link: '#' },
+    { label: 'Synth', ariaLabel: 'Case Synthesis', link: '#' }
+  ];
+
+  return (
+) => clearInterval(interval);
   }, [draftText]);
 
   // Generate line numbers for the pleading paper layout (1 to 28)
   const lineNumbers = Array.from({ length: 28 }, (_, i) => i + 1);
 
+
+  const menuItems = [
+    { label: 'Drafter', ariaLabel: 'Go to Drafter', link: '#' },
+    { label: 'Library', ariaLabel: 'Go to Library', link: '#' },
+    { label: 'Synth', ariaLabel: 'Case Synthesis', link: '#' }
+  ];
+
   return (
+
     <TooltipProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-neutral-50 text-neutral-900 font-sans antialiased text-xs">
+      <div className="flex h-screen w-screen overflow-hidden pt-16 bg-transparent text-[#2c1a12] font-sans antialiased text-xs">
         
+
         {/* ========================================================================================= */}
-        {/* LEFT COLUMN: COLLAPSIBLE SIDEBAR                                                          */}
+        {/* LEFT COLUMN: STAGGERED MENU NAVIGATION                                                    */}
         {/* ========================================================================================= */}
-        <aside
-          className={cn(
-            'flex flex-col border-r border-neutral-200 bg-neutral-100 transition-all duration-150 relative select-none z-20',
-            sidebarCollapsed ? 'w-10' : 'w-52'
-          )}
-        >
-          {/* Top Logo Panel */}
-          <div className="flex h-9 items-center justify-between border-b border-neutral-200 px-3 bg-neutral-200">
-            {!sidebarCollapsed && (
-              <Link href="/" className="flex items-center gap-1.5 font-mono font-bold tracking-tight text-neutral-800 no-underline hover:text-[#0033aa] transition-colors">
-                <Shield className="h-4 w-4 text-[#0033aa]" />
-                <span>LEX8 // DRAFTER</span>
-              </Link>
-            )}
-            {sidebarCollapsed && (
-              <Link href="/" className="mx-auto flex items-center no-underline">
-                <Shield className="h-4 w-4 text-[#0033aa]" />
-              </Link>
-            )}
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute -right-3 top-2.5 h-5 w-5 bg-white border border-neutral-200 rounded-none shadow-xs z-30 hover:bg-neutral-100 cursor-pointer"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              {sidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-            </Button>
-          </div>
+        <div className="z-50">
+          <StaggeredMenu
+            position="left"
+            isFixed={true}
+            items={[
+              { label: 'Dashboard', ariaLabel: 'Go to dashboard', link: '/dashboard' },
+              { label: 'Matter Library', ariaLabel: 'Go to library', link: '/library' },
+              { label: 'Case Synthesis', ariaLabel: 'Go to case synthesis', link: '/casesynth' }
+            ]}
+            socialItems={[]}
+            displaySocials={false}
+            displayItemNumbering={true}
+            menuButtonColor="#2c1a12"
+            openMenuButtonColor="#2c1a12"
+            changeMenuColorOnOpen={true}
+            colors={['#e6d8c8', '#b58055', '#8b5a33']}
+            accentColor="#fdf8f0"
+            logoUrl=""
+          />
+        </div>
 
-          {/* Matter Selector Dropdown */}
-          {!sidebarCollapsed && (
-            <div className="p-2 border-b border-neutral-200 bg-neutral-50">
-              <span className="block text-[9px] font-mono uppercase text-neutral-400 font-semibold mb-1">
-                Active Matter Context
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between font-mono text-[10px] text-left truncate rounded-none px-2 h-7">
-                    <span className="truncate">{activeMatter.name}</span>
-                    <FolderOpen className="h-3 w-3 shrink-0 ml-1 text-neutral-400" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuLabel>Select Matter</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {matters.map((matter) => (
-                    <DropdownMenuItem
-                      key={matter.id}
-                      onClick={() => {
-                        setActiveMatterId(matter.id);
-                        setDraftTitle(`${matter.name} — MSJ Brief`);
-                        triggerToast(`Switched context to ${matter.name}`);
-                      }}
-                      className={cn(
-                        'text-[10px] font-mono justify-between',
-                        matter.id === activeMatterId && 'bg-neutral-100 font-bold'
-                      )}
-                    >
-                      <div className="flex flex-col truncate">
-                        <span className="truncate font-semibold">{matter.name}</span>
-                        <span className="text-[8px] text-neutral-400">{matter.court} • {matter.caseNumber}</span>
-                      </div>
-                      {matter.id === activeMatterId && <Check className="h-3.5 w-3.5 ml-1 text-neutral-800" />}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          {/* Module Navigation List */}
-          <ScrollArea className="flex-1 py-2">
-            <div className="space-y-1 px-1">
-              {!sidebarCollapsed && (
-                <span className="block px-2 text-[9px] font-mono uppercase text-neutral-400 font-semibold mb-1">
-                  Matter Modules
-                </span>
-              )}
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveModule('dashboard');
-                      triggerToast(`Anchor8 Shield ${!isAnchor8Enabled ? 'Engaged' : 'Disengaged'}`);
-                    }}
-                  >
-                    <Shield className={cn("h-3 w-3", isAnchor8Enabled ? "text-indigo-600" : "text-neutral-400")} />
-                    <span>{isAnchor8Enabled ? 'Shield ON' : 'Shield OFF'}</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 rounded-none h-6 font-mono text-[10px] cursor-pointer"
-                    onClick={() => {
-                      localStorage.setItem('lex8_autosave_content', draftText);
-                      triggerToast('Draft saved to storage');
-                    }}
-                  >
-                    <Save className="h-3 w-3" />
-                    <span>Save</span>
-                  </Button>
-
-                  <Button
-                    variant={streamPhase === 'intercepted' ? 'destructive' : 'bloomberg'}
-                    size="sm"
-                    className={cn('gap-1 rounded-none h-6 text-[10px] cursor-pointer', (isLoading || isGenerating) && 'opacity-70 pointer-events-none')}
-                    onClick={executeDemoSequence}
-                  >
-                    {streamPhase === 'intercepted' ? (
-                      <>
-                        <AlertCircle className="h-3 w-3 animate-pulse" />
-                        <span>Intercept Engaged</span>
-                      </>
-                    ) : (isLoading || isGenerating) ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                        <span>Streaming...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-3 w-3" />
-                        <span>Compile & Verify</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </header>
-
+        {/* ========================================================================================= */}
+        {/* CENTER COLUMN: MAIN DOCUMENT WORKSPACE                                                   */}
+        {/* ========================================================================================= */}
+        <motion.main initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="flex-1 flex flex-col overflow-hidden min-w-0 px-2">
+          {!activeMatter ? null : (
+          <>
               {/* Matter Subtitle metadata */}
-              <div className="flex items-center justify-between bg-neutral-100 px-3 py-1 border-b border-neutral-200 text-[10px] font-mono text-neutral-500 select-none">
+              <div className="flex items-center justify-between glass-panel rounded-2xl m-2 px-3 py-1 border-b border-[#e6d8c8] text-sm font-mono text-[#8b5a33] select-none">
                 <div className="flex gap-4">
                   <span><strong>Docket:</strong> {activeMatter.caseNumber}</span>
                   <span><strong>Jurisdiction:</strong> {activeMatter.court}</span>
@@ -426,13 +422,13 @@ export default function Lex8Drafter() {
               </div>
 
               {/* Subtle Terminal-style Activity Ticker */}
-              <div className="bg-neutral-900 text-neutral-400 border-b border-neutral-800 px-3 py-1 font-mono text-[9px] flex items-center justify-between select-none">
+              <div className="glass-panel bg-[#2c1a12] rounded-xl shadow-lg text-[#b58055] border-b border-[#b58055]/20 px-3 py-1 font-mono text-xs flex items-center justify-between select-none">
                 <div className="flex items-center gap-2 overflow-hidden">
                   <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", isLoading ? "bg-green-500 animate-pulse" : "bg-neutral-600")} />
-                  <span className="text-neutral-500 uppercase tracking-wider shrink-0">WASM-Citator:</span>
-                  <span className={cn("truncate font-semibold", isLoading ? "text-green-400" : "text-neutral-400")}>{tickerMessage}</span>
+                  <span className="text-[#8b5a33] uppercase tracking-wider shrink-0">WASM-Citator:</span>
+                  <span className={cn("truncate font-semibold", isLoading ? "text-green-400" : "text-[#b58055]")}>{tickerMessage}</span>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 text-neutral-500">
+                <div className="flex items-center gap-3 shrink-0 text-[#8b5a33]">
                   <span>RATE: {tokensPerSecond} tk/s</span>
                   <span>PHASE: {streamPhase.toUpperCase()}</span>
                 </div>
@@ -444,10 +440,10 @@ export default function Lex8Drafter() {
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 animate-pulse" />
                     <div className="flex flex-col">
-                      <span className="font-mono text-[10px] font-bold text-red-800 uppercase tracking-wide">
+                      <span className="font-mono text-sm font-bold text-red-800 uppercase tracking-wide">
                         Lane 2 Intercept Engaged — Generation Stream Suspended
                       </span>
-                      <span className="text-[9px] text-red-600 font-mono leading-tight">
+                      <span className="text-xs text-red-600 font-mono leading-tight">
                         CRITICAL WARNING: Hallucinated precedent [Henderson v. Continental Marine] intercepted in real-time output.
                       </span>
                     </div>
@@ -456,7 +452,7 @@ export default function Lex8Drafter() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-5 text-[9px] border-red-300 text-red-800 hover:bg-red-100 font-mono rounded-none px-2 cursor-pointer"
+                      className="h-5 text-xs border-red-300 text-red-800 hover:bg-red-100 font-mono rounded-xl px-2 cursor-pointer"
                       onClick={() => {
                         setActiveRightTab('tribunal');
                         triggerToast('Redirected to Tribunal Adjudication panel.');
@@ -472,10 +468,10 @@ export default function Lex8Drafter() {
               <div className="flex-1 flex overflow-hidden">
                 {/* Left margin line numbers for court pleading paper feel */}
                 <div className={cn(
-                  "w-9 border-r flex flex-col items-center pt-3 font-mono text-[10px] select-none leading-6 text-right pr-2 transition-colors duration-200",
+                  "w-9 border-r flex flex-col items-center pt-3 font-mono text-sm select-none leading-6 text-right pr-2 transition-colors duration-200",
                   streamPhase === 'intercepted'
                     ? "border-red-300 bg-red-50/50 text-red-300"
-                    : "border-neutral-300 bg-neutral-50 text-neutral-300"
+                    : "border-[#b58055]/30 bg-transparent text-neutral-300"
                 )}>
                   {lineNumbers.map((num) => (
                     <div key={num} className="h-6">
@@ -487,17 +483,16 @@ export default function Lex8Drafter() {
                 {/* Main Draft Area */}
                 <div className={cn(
                   "flex-1 flex flex-col relative h-full transition-colors duration-200",
-                  streamPhase === 'intercepted' ? "bg-red-50/5" : "bg-white"
+                  streamPhase === 'intercepted' ? "bg-red-50/5" : "bg-white/60 backdrop-blur-md"
                 )}>
-                  <ScrollArea className="flex-1 w-full bg-white">
+                  <ScrollArea className="flex-1 w-full bg-white/60 backdrop-blur-md">
                     <EditorContent editor={editor} className="outline-hidden" />
                   </ScrollArea>
 
-                  {/* Dynamic Interactive Citations Banner inside Center Workspace */}
-                  <div className="absolute bottom-2 left-2 right-2 border border-neutral-200 bg-neutral-50 shadow-xs p-2 select-none z-10">
-                    <div className="flex items-center justify-between border-b border-neutral-200 pb-1 mb-1 font-mono text-[10px] text-neutral-500">
+                  <div className="absolute bottom-2 left-2 right-2 border border-[#e6d8c8] glass-panel shadow-xl shadow-brand/10 p-2 select-none z-10">
+                    <div className="flex items-center justify-between border-b border-[#e6d8c8] pb-1 mb-1 font-mono text-sm text-[#8b5a33]">
                       <span className="font-bold flex items-center gap-1">
-                        <Database className="h-3 w-3 text-[#0033aa]" />
+                        <Database className="h-3 w-3 text-brand" />
                         <span>Inline Citations (Parsed from Draft)</span>
                       </span>
                       <span>Click a chip to audit</span>
@@ -512,8 +507,8 @@ export default function Lex8Drafter() {
                             setActiveRightTab('anchor8');
                                                 }}
                           className={cn(
-                            'flex items-center gap-1.5 px-2 py-0.5 border font-mono text-[9px] font-semibold transition-colors cursor-pointer',
-                            c.id === selectedCitationId && 'ring-1 ring-[#0033aa]',
+                            'flex items-center gap-1.5 px-2 py-0.5 border font-mono text-xs font-semibold transition-colors cursor-pointer',
+                            c.id === selectedCitationId && 'ring-1 ring-brand',
                             c.status === 'verified' && 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100',
                             c.status === 'blocked' && 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 animate-pulse',
                             c.status === 'pending' && 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
@@ -530,7 +525,7 @@ export default function Lex8Drafter() {
                       ))}
                       
                       {citations.length === 0 && (
-                        <span className="text-[10px] text-neutral-400 font-mono italic">No legal citations found in draft.</span>
+                        <span className="text-sm text-[#b58055] font-mono italic">No legal citations found in draft.</span>
                       )}
                     </div>
                   </div>
@@ -538,7 +533,7 @@ export default function Lex8Drafter() {
               </div>
 
               {/* Bottom Telemetry Bar */}
-              <footer className="h-6 border-t border-neutral-200 bg-neutral-100 flex items-center justify-between px-3 font-mono text-[10px] text-neutral-500 select-none">
+              <footer className="h-6 border-t border-[#e6d8c8] glass-panel rounded-2xl m-2 flex items-center justify-between px-3 font-mono text-sm text-[#8b5a33] select-none">
                 <div className="flex gap-4">
                   <span><strong>Words:</strong> {draftText.split(/\s+/).filter(Boolean).length}</span>
                   <span><strong>Chars:</strong> {draftText.length}</span>
@@ -555,39 +550,50 @@ export default function Lex8Drafter() {
               </footer>
             </>
           )}
-        </main>
+        </motion.main>
 
         {/* ========================================================================================= */}
         {/* RIGHT COLUMN: GOVERNANCE PANEL                                                            */}
         {/* ========================================================================================= */}
-        <aside className="w-80 flex flex-col bg-neutral-100 select-none z-10">
+        <motion.aside initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="w-80 flex flex-col glass-panel rounded-2xl m-2 select-none z-10">
           
           {/* Tab Navigation header */}
           <Tabs value={activeRightTab} onValueChange={(v) => setActiveRightTab(v as any)} className="w-full flex-1 flex flex-col">
             
-            <TabsList className="grid grid-cols-4 h-9 bg-neutral-200 border-b border-neutral-300">
-              <TabsTrigger value="anchor8" className="text-[10px]">Anchor8</TabsTrigger>
-              <TabsTrigger value="validator" className="text-[10px]">Validator</TabsTrigger>
-              <TabsTrigger value="tribunal" className="text-[10px]">Tribunal</TabsTrigger>
-              <TabsTrigger value="telemetry" className="text-[10px]">Telemetry</TabsTrigger>
-            </TabsList>
+            <div className="border-b border-[#b58055]/30">
+              <PillNav
+                items={[
+                  { id: 'anchor8', label: 'Anchor8', onClick: () => setActiveRightTab('anchor8') },
+                  { id: 'validator', label: 'Validator', onClick: () => setActiveRightTab('validator') },
+                  { id: 'tribunal', label: 'Tribunal', onClick: () => setActiveRightTab('tribunal') },
+                  { id: 'telemetry', label: 'Telemetry', onClick: () => setActiveRightTab('telemetry') }
+                ]}
+                activeId={activeRightTab}
+                baseColor="transparent"
+                pillColor="transparent"
+                hoverBgColor="#2c1a12"
+                hoveredPillTextColor="#fdf8f0"
+                pillTextColor="#8b5a33"
+                initialLoadAnimation={false}
+              />
+            </div>
 
             {/* TAB CONTENT: ANCHOR8 VERIFICATION DETAILS */}
             <TabsContent value="anchor8" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
               <ScrollArea className="flex-1 p-3">
                 <div className="space-y-3">
-                  <div className="border border-neutral-200 bg-white p-2">
-                    <h3 className="font-mono font-bold text-neutral-800 text-[11px] border-b border-neutral-100 pb-1 mb-2 uppercase tracking-wide">
+                  <div className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2">
+                    <h3 className="font-mono font-bold text-[#2c1a12] text-base font-zaslia border-b border-[#e6d8c8]/50 pb-1 mb-2 uppercase tracking-wide">
                       Anchor8 Citation Defender
                     </h3>
-                    <p className="text-neutral-500 leading-normal text-[10px]">
+                    <p className="text-[#8b5a33] leading-normal text-sm">
                       Anchor8 analyzes citations at token-level midstream using local WASM validation against pre-fetched Matter libraries. Prevents courtroom citation sanctions.
                     </p>
                   </div>
 
                   {/* List of citations */}
                   <div className="space-y-1.5">
-                    <span className="block text-[9px] font-mono uppercase text-neutral-400 font-semibold px-0.5">
+                    <span className="block text-xs font-mono uppercase text-[#b58055] font-semibold px-0.5">
                       Citation Register
                     </span>
                     
@@ -597,11 +603,11 @@ export default function Lex8Drafter() {
                         onClick={() => setSelectedCitationId(c.id)}
                         className={cn(
                           'border p-2 cursor-pointer transition-colors',
-                          c.id === selectedCitationId ? 'bg-white border-neutral-400' : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200'
+                          c.id === selectedCitationId ? 'bg-white/60 backdrop-blur-md border-neutral-400' : 'bg-transparent hover:glass-panel rounded-2xl m-2 border-[#e6d8c8]'
                         )}
                       >
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-mono font-bold text-neutral-800 truncate max-w-[150px]">{c.caseName}</span>
+                          <span className="font-mono font-bold text-[#2c1a12] truncate max-w-[150px]">{c.caseName}</span>
                           <span className={cn(
                             'px-1.5 py-0.5 font-mono text-[8px] font-bold',
                             c.status === 'verified' && 'bg-green-100 text-green-800',
@@ -612,7 +618,7 @@ export default function Lex8Drafter() {
                           </span>
                         </div>
                         
-                        <div className="flex justify-between text-[9px] font-mono text-neutral-500">
+                        <div className="flex justify-between text-xs font-mono text-[#8b5a33]">
                           <span>{c.citation} ({c.year})</span>
                           <span>RAHS: {c.rahsScore}/100</span>
                         </div>
@@ -625,14 +631,22 @@ export default function Lex8Drafter() {
                     (() => {
                       const selectedCit = citations.find((c) => c.id === selectedCitationId);
                       if (!selectedCit) return null;
-                      return (
-                        <div className="border border-neutral-200 bg-white p-2.5 space-y-2">
-                          <div className="flex justify-between items-start border-b border-neutral-100 pb-1.5">
+                    
+  const menuItems = [
+    { label: 'Drafter', ariaLabel: 'Go to Drafter', link: '#' },
+    { label: 'Library', ariaLabel: 'Go to Library', link: '#' },
+    { label: 'Synth', ariaLabel: 'Case Synthesis', link: '#' }
+  ];
+
+  return (
+
+                        <div className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2.5 space-y-2">
+                          <div className="flex justify-between items-start border-b border-[#e6d8c8]/50 pb-1.5">
                             <div>
-                              <h4 className="font-mono font-bold text-neutral-800 text-[10px] leading-tight">
+                              <h4 className="font-mono font-bold text-[#2c1a12] text-sm leading-tight">
                                 {selectedCit.caseName}
                               </h4>
-                              <span className="text-[9px] text-neutral-400 font-mono">
+                              <span className="text-xs text-[#b58055] font-mono">
                                 {selectedCit.court} ({selectedCit.year})
                               </span>
                             </div>
@@ -646,19 +660,19 @@ export default function Lex8Drafter() {
                             </span>
                           </div>
 
-                          <div className="space-y-1 font-mono text-[9px]">
+                          <div className="space-y-1 font-mono text-xs">
                             <div className="flex justify-between">
-                              <span className="text-neutral-400">Reporter:</span>
-                              <span className="text-neutral-800 font-semibold">{selectedCit.citation}</span>
+                              <span className="text-[#b58055]">Reporter:</span>
+                              <span className="text-[#2c1a12] font-semibold">{selectedCit.citation}</span>
                             </div>
                             {selectedCit.pinpointCite && (
                               <div className="flex justify-between">
-                                <span className="text-neutral-400">Pinpoint:</span>
-                                <span className="text-neutral-800 font-semibold">Page {selectedCit.pinpointCite}</span>
+                                <span className="text-[#b58055]">Pinpoint:</span>
+                                <span className="text-[#2c1a12] font-semibold">Page {selectedCit.pinpointCite}</span>
                               </div>
                             )}
                             <div className="flex justify-between">
-                              <span className="text-neutral-400">RAHS Risk Index:</span>
+                              <span className="text-[#b58055]">RAHS Risk Index:</span>
                               <span className={cn(
                                 'font-bold',
                                 selectedCit.rahsScore > 50 ? 'text-red-600' : 'text-green-700'
@@ -667,12 +681,12 @@ export default function Lex8Drafter() {
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-neutral-400">Audit Timestamp:</span>
-                              <span className="text-neutral-800">{selectedCit.checkedAt}</span>
+                              <span className="text-[#b58055]">Audit Timestamp:</span>
+                              <span className="text-[#2c1a12]">{selectedCit.checkedAt}</span>
                             </div>
                           </div>
 
-                          <div className="border border-neutral-100 bg-neutral-50 p-2 font-mono text-[9px] text-neutral-600 leading-normal">
+                          <div className="border border-[#e6d8c8]/50 bg-transparent p-2 font-mono text-xs text-[#8b5a33] leading-normal">
                             <strong>Validation Snippet:</strong>
                             <p className="mt-1 italic">"{selectedCit.snippet}"</p>
                           </div>
@@ -685,7 +699,7 @@ export default function Lex8Drafter() {
                               </div>
                               <Button
                                 variant="destructive"
-                                className="w-full text-[9px] h-6 cursor-pointer"
+                                className="w-full text-xs h-6 cursor-pointer"
                                 onClick={() => {
                                   setActiveRightTab('tribunal');
                                   setActiveTribunalReviewId('rev-henderson');
@@ -708,24 +722,24 @@ export default function Lex8Drafter() {
             <TabsContent value="validator" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
               <ScrollArea className="flex-1 p-3">
                 <div className="space-y-3">
-                  <div className="border border-neutral-200 bg-white p-2">
-                    <h3 className="font-mono font-bold text-neutral-800 text-[11px] border-b border-neutral-100 pb-1 mb-2 uppercase tracking-wide">
+                  <div className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2">
+                    <h3 className="font-mono font-bold text-[#2c1a12] text-base font-zaslia border-b border-[#e6d8c8]/50 pb-1 mb-2 uppercase tracking-wide">
                       Validator Suite
                     </h3>
-                    <p className="text-neutral-500 leading-normal text-[10px]">
+                    <p className="text-[#8b5a33] leading-normal text-sm">
                       Runs legal checks, local rulesets, formatting compliance, and ethical playbook audits on drafts.
                     </p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className="block text-[9px] font-mono uppercase text-neutral-400 font-semibold px-0.5">
+                    <span className="block text-xs font-mono uppercase text-[#b58055] font-semibold px-0.5">
                       Ruleset Checklist
                     </span>
 
                     {complianceChecks.map((check) => (
-                      <div key={check.id} className="border border-neutral-200 bg-white p-2.5 space-y-1.5">
-                        <div className="flex justify-between items-center border-b border-neutral-100 pb-1">
-                          <span className="font-mono font-bold text-neutral-800 text-[10px]">{check.ruleId}: {check.title}</span>
+                      <div key={check.id} className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2.5 space-y-1.5">
+                        <div className="flex justify-between items-center border-b border-[#e6d8c8]/50 pb-1">
+                          <span className="font-mono font-bold text-[#2c1a12] text-sm">{check.ruleId}: {check.title}</span>
                           <span className={cn(
                             'px-1.5 py-0.5 text-[8px] font-bold font-mono',
                             check.status === 'pass' && 'bg-green-50 text-green-700',
@@ -735,7 +749,7 @@ export default function Lex8Drafter() {
                             {check.status.toUpperCase()}
                           </span>
                         </div>
-                        <p className="font-mono text-[9px] text-neutral-600 leading-normal">{check.message}</p>
+                        <p className="font-mono text-xs text-[#8b5a33] leading-normal">{check.message}</p>
                       </div>
                     ))}
                   </div>
@@ -747,19 +761,19 @@ export default function Lex8Drafter() {
             <TabsContent value="tribunal" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
               <ScrollArea className="flex-1 p-3">
                 <div className="space-y-3">
-                  <div className="border border-neutral-200 bg-white p-2">
-                    <h3 className="font-mono font-bold text-neutral-800 text-[11px] border-b border-neutral-100 pb-1 mb-2 uppercase tracking-wide">
+                  <div className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2">
+                    <h3 className="font-mono font-bold text-[#2c1a12] text-base font-zaslia border-b border-[#e6d8c8]/50 pb-1 mb-2 uppercase tracking-wide">
                       Administrative Tribunal
                     </h3>
-                    <p className="text-neutral-500 leading-normal text-[10px]">
+                    <p className="text-[#8b5a33] leading-normal text-sm">
                       When Anchor8 halts streaming on critical warnings, Lead Auditors vote to bypass or require correction before enabling final filing operations.
                     </p>
                   </div>
 
                   {tribunalReviews.map((rev) => (
-                    <div key={rev.id} className="border border-neutral-200 bg-white p-2.5 space-y-2">
-                      <div className="flex justify-between items-center border-b border-neutral-100 pb-1.5">
-                        <span className="font-mono font-bold text-neutral-800 text-[10px]">Review: {rev.id}</span>
+                    <div key={rev.id} className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2.5 space-y-2">
+                      <div className="flex justify-between items-center border-b border-[#e6d8c8]/50 pb-1.5">
+                        <span className="font-mono font-bold text-[#2c1a12] text-sm">Review: {rev.id}</span>
                         <span className={cn(
                           'px-1.5 py-0.5 text-[8px] font-bold font-mono',
                           rev.status === 'pending' && 'bg-amber-100 text-amber-800 animate-pulse',
@@ -770,34 +784,34 @@ export default function Lex8Drafter() {
                         </span>
                       </div>
 
-                      <div className="space-y-1 font-mono text-[9px]">
+                      <div className="space-y-1 font-mono text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Violation Reason:</span>
+                          <span className="text-[#b58055]">Violation Reason:</span>
                           <span className="text-red-700 font-bold max-w-[150px] truncate text-right">{rev.reason}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">SLA Adjudication Clock:</span>
-                          <span className="flex items-center gap-1 text-neutral-800 font-semibold">
+                          <span className="text-[#b58055]">SLA Adjudication Clock:</span>
+                          <span className="flex items-center gap-1 text-[#2c1a12] font-semibold">
                             <Clock className="h-3 w-3 text-amber-600" />
                             {rev.slaMinutesRemaining} minutes remaining
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Auditor Status:</span>
-                          <span className="text-neutral-800">
+                          <span className="text-[#b58055]">Auditor Status:</span>
+                          <span className="text-[#2c1a12]">
                             {rev.votes.filter(v => v === 'reject').length} Reject Votes
                           </span>
                         </div>
                       </div>
 
                       {rev.proposedCorrection && (
-                        <div className="bg-neutral-50 border border-neutral-200 p-2 font-mono text-[9px]">
-                          <strong className="text-neutral-500">Proposed Precedent Bypasses:</strong>
-                          <p className="mt-1 font-semibold text-neutral-800">{rev.proposedCorrection}</p>
+                        <div className="bg-transparent border border-[#e6d8c8] p-2 font-mono text-xs">
+                          <strong className="text-[#8b5a33]">Proposed Precedent Bypasses:</strong>
+                          <p className="mt-1 font-semibold text-[#2c1a12]">{rev.proposedCorrection}</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full text-[9px] h-5 mt-1.5 cursor-pointer font-mono font-normal"
+                            className="w-full text-xs h-5 mt-1.5 cursor-pointer font-mono font-normal"
                             onClick={() => {
                               // Replace the placeholder citation in draft
                               const replaced = draftText
@@ -855,12 +869,12 @@ export default function Lex8Drafter() {
 
                       {/* Auditor comments thread */}
                       <div className="space-y-1">
-                        <span className="block text-[8px] font-mono uppercase text-neutral-400 font-semibold px-0.5">
+                        <span className="block text-[8px] font-mono uppercase text-[#b58055] font-semibold px-0.5">
                           Auditor Comments
                         </span>
-                        <div className="bg-neutral-50 p-1.5 border border-neutral-100 rounded-none max-h-24 overflow-y-auto font-mono text-[9px] text-neutral-600 space-y-1">
+                        <div className="bg-transparent p-1.5 border border-[#e6d8c8]/50 rounded-xl max-h-24 overflow-y-auto font-mono text-xs text-[#8b5a33] space-y-1">
                           {rev.auditorComments.map((comment, i) => (
-                            <p key={i} className="border-b border-neutral-100 pb-1 last:border-0 last:pb-0">
+                            <p key={i} className="border-b border-[#e6d8c8]/50 pb-1 last:border-0 last:pb-0">
                               • {comment}
                             </p>
                           ))}
@@ -868,10 +882,10 @@ export default function Lex8Drafter() {
                       </div>
 
                       {rev.status === 'pending' && (
-                        <div className="pt-1.5 border-t border-neutral-100">
+                        <div className="pt-1.5 border-t border-[#e6d8c8]/50">
                           <Button
                             variant="bloomberg"
-                            className="w-full text-[9px] h-6 cursor-pointer"
+                            className="w-full text-xs h-6 cursor-pointer"
                             onClick={() => setShowOverrideDialog(true)}
                           >
                             Execute Admin Override Code
@@ -882,7 +896,7 @@ export default function Lex8Drafter() {
                   ))}
 
                   {tribunalReviews.length === 0 && (
-                    <div className="text-center py-4 border border-dashed border-neutral-200 text-neutral-400 font-mono text-[10px]">
+                    <div className="text-center py-4 border border-dashed border-[#e6d8c8] text-[#b58055] font-mono text-sm">
                       No active tribunal adjudications.
                     </div>
                   )}
@@ -893,30 +907,30 @@ export default function Lex8Drafter() {
             {/* TAB CONTENT: WASM / AUDIT TELEMETRY LOGS */}
             <TabsContent value="telemetry" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
               <div className="flex-1 flex flex-col p-3 overflow-hidden">
-                <div className="border border-neutral-200 bg-white p-2 mb-2 select-none">
-                  <h3 className="font-mono font-bold text-neutral-800 text-[11px] border-b border-neutral-100 pb-1 mb-2 uppercase tracking-wide flex items-center justify-between">
+                <div className="border border-[#e6d8c8] bg-white/60 backdrop-blur-md p-2 mb-2 select-none">
+                  <h3 className="font-mono font-bold text-[#2c1a12] text-base font-zaslia border-b border-[#e6d8c8]/50 pb-1 mb-2 uppercase tracking-wide flex items-center justify-between">
                     <span className="flex items-center gap-1">
-                      <Terminal className="h-3.5 w-3.5 text-neutral-600" />
+                      <Terminal className="h-3.5 w-3.5 text-[#8b5a33]" />
                       <span>Audit Telemetry</span>
                     </span>
                     <Button variant="ghost" className="h-4 px-1.5 text-[8px] cursor-pointer" onClick={clearAuditLogs}>
                       Clear Logs
                     </Button>
                   </h3>
-                  <p className="text-neutral-500 leading-normal text-[10px]">
+                  <p className="text-[#8b5a33] leading-normal text-sm">
                     Real-time logging of WASM checks, REST queries, local DB cache actions, and cassette payloads.
                   </p>
                 </div>
 
                 {/* Dense Monospaced Terminal View */}
-                <div className="flex-1 bg-neutral-900 border border-neutral-800 text-neutral-300 font-mono text-[9px] p-2 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 glass-panel bg-[#2c1a12] rounded-xl shadow-lg border border-[#b58055]/20 text-neutral-300 font-mono text-xs p-2 overflow-y-auto scrollbar-thin">
                   <div className="space-y-1.5">
                     {auditLogs.map((log, i) => (
-                      <div key={i} className="flex items-start gap-1 leading-normal border-b border-neutral-800 pb-1 last:border-0 last:pb-0">
-                        <span className="text-neutral-500 shrink-0 select-none">[{log.timestamp}]</span>
+                      <div key={i} className="flex items-start gap-1 leading-normal border-b border-[#b58055]/20 pb-1 last:border-0 last:pb-0">
+                        <span className="text-[#8b5a33] shrink-0 select-none">[{log.timestamp}]</span>
                         <span className={cn(
                           'font-bold shrink-0 px-1 text-[8px] select-none',
-                          log.level === 'info' && 'bg-neutral-800 text-neutral-400',
+                          log.level === 'info' && 'bg-neutral-800 text-[#b58055]',
                           log.level === 'warning' && 'bg-amber-900/50 text-amber-400',
                           log.level === 'critical' && 'bg-red-950/70 text-red-400 animate-pulse',
                           log.level === 'error' && 'bg-red-900/50 text-red-400'
@@ -927,7 +941,7 @@ export default function Lex8Drafter() {
                       </div>
                     ))}
                     {auditLogs.length === 0 && (
-                      <span className="text-neutral-600 italic">Logs are empty. Run Compile & Verify to capture logs.</span>
+                      <span className="text-[#8b5a33] italic">Logs are empty. Run Compile & Verify to capture logs.</span>
                     )}
                   </div>
                 </div>
@@ -935,7 +949,7 @@ export default function Lex8Drafter() {
             </TabsContent>
 
           </Tabs>
-        </aside>
+        </motion.aside>
 
       </div>
 
@@ -957,25 +971,25 @@ export default function Lex8Drafter() {
           </DialogHeader>
           <div className="grid gap-3 py-2 font-mono text-xs">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="code" className="text-neutral-500">Security Override Passcode</label>
+              <label htmlFor="code" className="text-[#8b5a33]">Security Override Passcode</label>
               <input
                 id="code"
                 type="text"
                 placeholder="Enter OVERRIDE_ADMIN"
                 value={adminOverrideCode}
                 onChange={(e) => setAdminOverrideCode(e.target.value)}
-                className="w-full bg-neutral-100 border border-neutral-300 px-3 py-1.5 font-mono text-xs text-neutral-800 uppercase focus:outline-hidden focus:ring-1 focus:ring-neutral-400 focus:bg-white"
+                className="w-full glass-panel rounded-2xl m-2 border border-[#b58055]/30 px-3 py-1.5 font-mono text-xs text-[#2c1a12] uppercase focus:outline-hidden focus:ring-1 focus:ring-neutral-400 focus:bg-white/60 backdrop-blur-md"
               />
             </div>
-            <div className="text-[10px] text-neutral-500 leading-normal bg-neutral-50 border border-neutral-200 p-2">
+            <div className="text-sm text-[#8b5a33] leading-normal bg-transparent border border-[#e6d8c8] p-2">
               ⚠️ Warning: Admin override bypasses FRCP Rule 11 verification. Your auditor credentials will be recorded in the persistent blockchain telemetry log.
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-none cursor-pointer" onClick={() => setShowOverrideDialog(false)}>
+            <Button variant="outline" className="rounded-xl cursor-pointer" onClick={() => setShowOverrideDialog(false)}>
               Cancel
             </Button>
-            <Button variant="bloomberg" className="rounded-none cursor-pointer" onClick={handleOverrideAdjudication}>
+            <Button variant="bloomberg" className="rounded-xl cursor-pointer" onClick={handleOverrideAdjudication}>
               Authorize Bypass
             </Button>
           </DialogFooter>
@@ -984,8 +998,8 @@ export default function Lex8Drafter() {
 
       {/* Toast popup */}
       {toastMsg && (
-        <div className="fixed bottom-8 right-8 z-50 bg-neutral-900 border border-neutral-700 text-white font-mono text-[10px] px-3 py-1.5 shadow-md flex items-center gap-2">
-          <Database className="h-3.5 w-3.5 text-[#0033aa]" />
+        <div className="fixed bottom-8 right-8 z-50 glass-panel bg-[#2c1a12] rounded-xl shadow-lg border border-neutral-700 text-white font-mono text-sm px-3 py-1.5 shadow-md flex items-center gap-2">
+          <Database className="h-3.5 w-3.5 text-brand" />
           <span>{toastMsg}</span>
         </div>
       )}

@@ -49,8 +49,12 @@ interface DrafterState {
   setIsStreaming: (isStreaming: boolean) => void;
   streamPhase: string;
   setStreamPhase: (phase: string) => void;
+
   activeModule: 'drafter' | 'library' | 'casesynth' | 'dashboard';
   setActiveModule: (module: 'drafter' | 'library' | 'casesynth' | 'dashboard') => void;
+  auditLogs: any[];
+  addAuditLog: (entry: any) => void;
+  clearAuditLogs: () => void;
 }
 
 export const useDrafterStore = create<DrafterState>((set) => ({
@@ -211,6 +215,17 @@ Defendant does not dispute it created a parallel ledger system. Commingling of j
   setIsStreaming: (isStreaming) => set({ isStreaming }),
   streamPhase: 'idle',
   setStreamPhase: (phase) => set({ streamPhase: phase }),
+
   activeModule: 'drafter',
-  setActiveModule: (module) => set({ activeModule: module })
+  setActiveModule: (module) => set({ activeModule: module }),
+  auditLogs: [
+    { timestamp: '09:12:44', level: 'info', module: 'Anchor8', message: 'WASM citator initialized. Matter library cassette loaded.' },
+    { timestamp: '09:13:01', level: 'critical', module: 'Anchor8', message: 'RASH ALERT: Henderson v. Continental Marine flagged as unverifiable. Stream intercepted.' },
+  ],
+  addAuditLog: (entry) => set((state) => {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+    return { auditLogs: [...state.auditLogs, { ...entry, timestamp }] };
+  }),
+  clearAuditLogs: () => set({ auditLogs: [] })
 }));
+

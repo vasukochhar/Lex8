@@ -1,105 +1,90 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --font-sans: var(--font-inter);
+  --font-zaslia: var(--font-zaslia-custom);
+  --font-cormorant: var(--font-cormorant-custom);
+  --color-background: #fdf8f0;
+  --color-foreground: #2c1a12;
+  --color-brand: #8b5a33;
+  --color-brand-light: #b58055;
+  --color-border: #e6d8c8;
+
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.145 0 0);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.145 0 0);
+  --color-primary: #2c1a12;
+  --color-primary-foreground: #fdf8f0;
+  --color-secondary: oklch(0.97 0 0);
+  --color-secondary-foreground: oklch(0.205 0 0);
+  --color-muted: oklch(0.97 0 0);
+  --color-muted-foreground: oklch(0.556 0 0);
+  --color-accent: oklch(0.97 0 0);
+  --color-accent-foreground: oklch(0.205 0 0);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-destructive-foreground: oklch(1 0 0);
+  --color-ring: oklch(0.708 0 0);
+  --color-input: #e6d8c8;
   
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
-  
-  --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), GeistMono, Courier, monospace;
-  --font-serif: "IBM Plex Serif", Georgia, serif;
+  --radius-lg: 0.625rem;
+  --radius-md: calc(0.625rem - 2px);
+  --radius-sm: calc(0.625rem - 4px);
 }
 
 :root {
-  --background: #fafafa;
-  --foreground: #111111;
-
-  --card: #ffffff;
-  --card-foreground: #111111;
-
-  --popover: #ffffff;
-  --popover-foreground: #111111;
-
-  --primary: #000000;
-  --primary-foreground: #ffffff;
-
-  --secondary: #f0f0f0;
-  --secondary-foreground: #111111;
-
-  --muted: #f5f5f5;
-  --muted-foreground: #555555;
-
-  --accent: #e5e5e5;
-  --accent-foreground: #111111;
-
-  --destructive: #cc0000;
-  --destructive-foreground: #ffffff;
-
-  /* Crisp terminal style borders */
-  --border: #e0e0e0;
-  --input: #e0e0e0;
-  --ring: #3b82f6;
-
-  /* Sharp or barely rounded corners for industrial feel */
-  --radius: 0px;
+  --background: #fdf8f0;
+  --foreground: #2c1a12;
 }
 
-/* Custom dark/dense styling variables for Bloomberg style look */
-.theme-bloomberg-light {
-  --bg-grid: #1c1c1c;
-  --terminal-green: #008f11;
-  --terminal-amber: #e67e22;
+html, body {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
-/* Custom Scrollbar for Dense layout */
+.bg-noise {
+  background-image: 
+    radial-gradient(ellipse at top right, rgba(139, 90, 51, 0.1) 0%, transparent 70%),
+    radial-gradient(ellipse at bottom left, rgba(181, 128, 85, 0.15) 0%, transparent 80%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  background-color: var(--background);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Custom Scrollbar for elegant layout */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d4;
-  border-radius: 0px;
+  background: rgba(139, 90, 51, 0.2);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a3a3a3;
-}
-
-/* Dense form styling */
-input, select, textarea {
-  border-radius: 0px !important;
-  font-family: inherit;
-}
-
-/* Page transitions/animations minimal motion */
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 75ms;
+  background: rgba(139, 90, 51, 0.4);
 }
